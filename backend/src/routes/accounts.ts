@@ -1,15 +1,16 @@
 import { Router } from 'express';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
-import { store, Account } from '../repositories/store';
+import { Account } from '../repositories/store';
+import { dataAdapter } from '../repositories/dataAdapter';
 import { calculateAccountBalance } from '../services/balance';
 
 export const accountsRouter = Router();
 
 // GET all accounts for user with live calculated balance
-accountsRouter.get('/', authenticateUser, (req: AuthenticatedRequest, res) => {
+accountsRouter.get('/', authenticateUser, async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
-  const userAccounts = Array.from(store.accounts.values()).filter(a => a.userId === userId);
-  const userTxs = Array.from(store.transactions.values()).filter(t => t.userId === userId);
+  const userAccounts = await dataAdapter.getAccounts(userId);
+  const userTxs = await dataAdapter.getTransactions(userId);
 
   const result = userAccounts.map(acc => {
     const calc = calculateAccountBalance(acc, userTxs);
@@ -23,7 +24,7 @@ accountsRouter.get('/', authenticateUser, (req: AuthenticatedRequest, res) => {
 });
 
 // POST create account
-accountsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res) => {
+accountsRouter.post('/', authenticateUser, async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
   const { name, type, openingBalanceMinor, currencyCode } = req.body;
 
@@ -42,6 +43,6 @@ accountsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res) => {
     createdAt: new Date().toISOString()
   };
 
-  store.accounts.set(newAccount.id, newAccount);
+  await dataAdapter.createAccount(newAccount);
   res.status(201).json({ success: true, data: newAccount });
 });

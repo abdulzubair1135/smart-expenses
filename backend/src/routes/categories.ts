@@ -1,19 +1,18 @@
 import { Router } from 'express';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
-import { store, Category } from '../repositories/store';
+import { Category } from '../repositories/store';
+import { dataAdapter } from '../repositories/dataAdapter';
 
 export const categoriesRouter = Router();
 
-categoriesRouter.get('/', authenticateUser, (req: AuthenticatedRequest, res) => {
+categoriesRouter.get('/', authenticateUser, async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
   // Shared categories (userId is null) + user's own custom categories
-  const categories = Array.from(store.categories.values()).filter(
-    c => c.userId === null || c.userId === userId
-  );
+  const categories = await dataAdapter.getCategories(userId);
   res.status(200).json({ success: true, data: categories });
 });
 
-categoriesRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res) => {
+categoriesRouter.post('/', authenticateUser, async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
   const { name, type, iconKey, colorHex } = req.body;
 
@@ -32,6 +31,7 @@ categoriesRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res) =>
     createdAt: new Date().toISOString()
   };
 
-  store.categories.set(newCategory.id, newCategory);
+  await dataAdapter.createCategory(newCategory);
   res.status(201).json({ success: true, data: newCategory });
 });
+

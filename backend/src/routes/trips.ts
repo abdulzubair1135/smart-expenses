@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
 import { store, Trip } from '../repositories/store';
+import { dataAdapter } from '../repositories/dataAdapter';
 import { z } from 'zod';
 import crypto from 'crypto';
 
@@ -19,19 +20,20 @@ const updateTripSchema = createTripSchema.partial().extend({
 });
 
 // 1. GET /api/v1/trips
-tripsRouter.get('/', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+tripsRouter.get('/', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const statusFilter = req.query.status as string | undefined;
 
-  let trips = Array.from(store.trips.values()).filter(t => t.userId === userId);
+  let trips = await dataAdapter.getTrips(userId);
   if (statusFilter) {
     trips = trips.filter(t => t.status === statusFilter);
   }
 
   // Calculate total spending for each trip dynamically from completed transactions
+  const transactions = await dataAdapter.getTransactions(userId);
   const tripsWithMetrics = trips.map(trip => {
-    const tripTransactions = Array.from(store.transactions.values()).filter(
-      tx => tx.userId === userId && tx.tripId === trip.id && tx.status === 'completed' && tx.type === 'expense'
+    const tripTransactions = transactions.filter(
+      tx => tx.tripId === trip.id && tx.status === 'completed' && tx.type === 'expense'
     );
     const totalSpentMinor = tripTransactions.reduce((sum, tx) => sum + tx.amountMinor, 0);
 
@@ -52,7 +54,7 @@ tripsRouter.get('/', authenticateUser, (req: AuthenticatedRequest, res: Response
 });
 
 // 2. POST /api/v1/trips
-tripsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+tripsRouter.post('/', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const parseResult = createTripSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({
@@ -86,7 +88,8 @@ tripsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res: Respons
     updatedAt: now
   };
 
-  store.trips.set(id, newTrip);
+  await dataAdapter.createTrip(newTrip);
+  await dataAdapter.recordActivity(userId, 'TRIP_CREATED', 'success', { tripId: id, name });
 
   res.status(201).json({
     success: true,
@@ -131,7 +134,7 @@ tripsRouter.get('/:id', authenticateUser, (req: AuthenticatedRequest, res: Respo
 });
 
 // 4. PATCH /api/v1/trips/:id
-tripsRouter.patch('/:id', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+tripsRouter.patch('/:id', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const tripId = req.params.id as string;
   const trip = store.trips.get(tripId);
@@ -158,7 +161,7 @@ tripsRouter.patch('/:id', authenticateUser, (req: AuthenticatedRequest, res: Res
     updatedAt: new Date().toISOString()
   };
 
-  store.trips.set(trip.id, updatedTrip);
+  await dataAdapter.updateTrip(updatedTrip);
 
   res.json({
     success: true,
@@ -167,7 +170,7 @@ tripsRouter.patch('/:id', authenticateUser, (req: AuthenticatedRequest, res: Res
 });
 
 // 5. DELETE /api/v1/trips/:id (Safe archive if transactions linked)
-tripsRouter.delete('/:id', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+tripsRouter.delete('/:id', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const tripId = req.params.id as string;
   const trip = store.trips.get(tripId);
@@ -187,7 +190,7 @@ tripsRouter.delete('/:id', authenticateUser, (req: AuthenticatedRequest, res: Re
     // Preserve financial history by marking as archived rather than deleting
     trip.status = 'archived';
     trip.updatedAt = new Date().toISOString();
-    store.trips.set(trip.id, trip);
+    await dataAdapter.updateTrip(trip);
     return res.json({
       success: true,
       message: 'Trip has linked financial transactions and was safely archived rather than deleted',
@@ -195,7 +198,7 @@ tripsRouter.delete('/:id', authenticateUser, (req: AuthenticatedRequest, res: Re
     });
   }
 
-  store.trips.delete(trip.id);
+  await dataAdapter.deleteTrip(trip.id);
   res.json({
     success: true,
     message: 'Trip deleted successfully'

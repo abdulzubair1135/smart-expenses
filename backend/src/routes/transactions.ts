@@ -1,16 +1,16 @@
 import { Router, Response } from 'express';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
 import { store, Transaction } from '../repositories/store';
+import { dataAdapter } from '../repositories/dataAdapter';
 
 export const transactionsRouter = Router();
 
 // GET transactions with search, filter by type/category/account
-transactionsRouter.get('/', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
-
+transactionsRouter.get('/', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const { type, accountId, categoryId, search } = req.query;
 
-  let txs = Array.from(store.transactions.values()).filter(t => t.userId === userId);
+  let txs = await dataAdapter.getTransactions(userId);
 
   if (type && typeof type === 'string') {
     txs = txs.filter(t => t.type === type);
@@ -33,8 +33,7 @@ transactionsRouter.get('/', authenticateUser, (req: AuthenticatedRequest, res: R
 });
 
 // POST create transaction
-transactionsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
-
+transactionsRouter.post('/', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const {
     accountId,
@@ -46,7 +45,10 @@ transactionsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res: 
     transactionDate,
     relatedPerson,
     destinationAccountId,
-    idempotencyKey
+    idempotencyKey,
+    expenseGroup,
+    tripId,
+    isImportant
   } = req.body;
 
   if (!accountId || !type || !amountMinor || amountMinor <= 0) {
@@ -56,7 +58,8 @@ transactionsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res: 
 
   // Check idempotency if key provided
   if (idempotencyKey) {
-    const existing = Array.from(store.transactions.values()).find(t => t.idempotencyKey === idempotencyKey);
+    const allTxs = await dataAdapter.getTransactions(userId);
+    const existing = allTxs.find(t => t.idempotencyKey === idempotencyKey);
     if (existing) {
       res.status(200).json({ success: true, data: existing, idempotent: true });
       return;
@@ -77,16 +80,20 @@ transactionsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res: 
     idempotencyKey,
     relatedPerson,
     destinationAccountId,
+    expenseGroup: expenseGroup || 'GENERAL',
+    tripId: tripId || null,
+    isImportant: isImportant || false,
     createdAt: new Date().toISOString()
   };
 
-  store.transactions.set(newTx.id, newTx);
+  await dataAdapter.createTransaction(newTx);
+  await dataAdapter.recordActivity(userId, 'TRANSACTION_CREATED', 'success');
+
   res.status(201).json({ success: true, data: newTx });
 });
 
 // DELETE transaction
 transactionsRouter.delete('/:id', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
-
   const userId = req.user!.id;
   const id = req.params.id as string;
 
@@ -97,5 +104,6 @@ transactionsRouter.delete('/:id', authenticateUser, (req: AuthenticatedRequest, 
   }
 
   store.transactions.delete(id);
+  dataAdapter.recordActivity(userId, 'TRANSACTION_DELETED', 'success');
   res.status(200).json({ success: true, message: 'Transaction deleted' });
 });

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_main"
+    android:orientation="vertical">
+
+    <!-- Top Toolbar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="12dp">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Back"
+            android:src="@drawable/ic_back"
+            app:tint="@color/text_primary" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="Special Expenses"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_add_special"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="+ Add"
+            android:textAllCaps="false"
+            android:textColor="@color/text_on_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/brand_primary"
+            app:cornerRadius="10dp" />
+    </LinearLayout>
+
+    <!-- Summary Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="4dp"
+        app:cardBackgroundColor="@color/bg_card"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="1dp"
+        app:strokeColor="@color/border_light"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Total Special &amp; Emergency Expenses"
+                android:textColor="@color/text_secondary"
+                android:textSize="12.5sp" />
+
+            <TextView
+                android:id="@+id/tv_special_total"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="₹ 0"
+                android:textColor="@color/financial_expense"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_special_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="0 records • Tracked separately without duplicating overall expenses"
+                android:textColor="@color/text_tertiary"
+                android:textSize="11.5sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Subtitle -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="16dp"
+        android:text="Special &amp; One-Time Records"
+        android:textColor="@color/text_primary"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <!-- RecyclerView of Special Expenses -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_special_expenses"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="24dp" />
+
+    <!-- Empty State -->
+    <TextView
+        android:id="@+id/tv_empty_special"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
+        android:gravity="center"
+        android:text="No special expenses recorded.\nClassify emergency or unusual purchases as Special."
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+</LinearLayout>

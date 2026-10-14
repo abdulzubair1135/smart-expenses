@@ -48,7 +48,21 @@
 
         <activity
             android:name=".ui.home.MainActivity"
-            android:exported="false" />
+            android:exported="true" />
+
+        <activity
+            android:name=".ui.travel.TravelTripsActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".ui.travel.TripDetailsActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".ui.special.SpecialExpensesActivity"
+            android:exported="true" />
+
+
 
         <provider
             android:name="androidx.core.content.FileProvider"

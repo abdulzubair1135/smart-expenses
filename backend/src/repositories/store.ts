@@ -34,6 +34,19 @@ export interface Category {
   createdAt: string;
 }
 
+export interface Trip {
+  id: string;
+  userId: string;
+  name: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  description?: string;
+  status: 'active' | 'completed' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Transaction {
   id: string;
   userId: string;
@@ -48,6 +61,9 @@ export interface Transaction {
   idempotencyKey?: string;
   relatedPerson?: string;
   destinationAccountId?: string;
+  expenseGroup?: 'GENERAL' | 'TRAVEL' | 'SPECIAL';
+  tripId?: string | null;
+  isImportant?: boolean;
   createdAt: string;
 }
 
@@ -92,6 +108,7 @@ export class MemoryStore {
   transactions: Map<string, Transaction> = new Map();
   savingGoals: Map<string, SavingGoal> = new Map();
   upcomingExpenses: Map<string, UpcomingExpense> = new Map();
+  trips: Map<string, Trip> = new Map();
   deviceTokens: Map<string, { userId: string; token: string; updatedAt: string }> = new Map();
   auditLogs: AdminAuditLog[] = [];
 
@@ -189,6 +206,54 @@ export class MemoryStore {
       relatedPerson: 'Rahul',
       transactionDate: now.toISOString(),
       status: 'completed',
+      createdAt: now.toISOString()
+    });
+
+    // Seed Trip
+    this.trips.set('trip-1', {
+      id: 'trip-1',
+      userId: demoUserId,
+      name: 'Mumbai Visit',
+      destination: 'Mumbai, Maharashtra',
+      startDate: '2026-11-12',
+      endDate: '2026-11-15',
+      description: 'Business Trip & Client Meetings',
+      status: 'active',
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString()
+    });
+
+    // Seed Travel Expense linked to trip-1
+    this.transactions.set('tx-3', {
+      id: 'tx-3',
+      userId: demoUserId,
+      accountId: 'acc-bank',
+      type: 'expense',
+      amountMinor: 150000, // ₹1,500
+      currencyCode: 'INR',
+      categoryId: 'cat-travel',
+      description: 'Train Ticket to Mumbai',
+      transactionDate: now.toISOString(),
+      status: 'completed',
+      expenseGroup: 'TRAVEL',
+      tripId: 'trip-1',
+      createdAt: now.toISOString()
+    });
+
+    // Seed Special Expense
+    this.transactions.set('tx-4', {
+      id: 'tx-4',
+      userId: demoUserId,
+      accountId: 'acc-upi',
+      type: 'expense',
+      amountMinor: 250000, // ₹2,500
+      currencyCode: 'INR',
+      categoryId: 'cat-bills',
+      description: 'Emergency Phone Screen Repair',
+      transactionDate: now.toISOString(),
+      status: 'completed',
+      expenseGroup: 'SPECIAL',
+      isImportant: true,
       createdAt: now.toISOString()
     });
   }

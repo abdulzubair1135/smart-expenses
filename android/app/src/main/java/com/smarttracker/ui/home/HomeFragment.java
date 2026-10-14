@@ -1,10 +1,13 @@
 package com.smarttracker.ui.home;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AnimationUtils;
+import com.smarttracker.ui.travel.TravelTripsActivity;
+import com.smarttracker.ui.special.SpecialExpensesActivity;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -74,6 +77,26 @@ public class HomeFragment extends Fragment {
             }
         });
 
+        binding.cardOverviewToday.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).openActivityWithFilter("DAILY");
+            }
+        });
+
+        binding.cardOverviewMonth.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).openActivityWithFilter("MONTHLY");
+            }
+        });
+
+        binding.cardOverviewTravel.setOnClickListener(v -> {
+            startActivity(new Intent(requireContext(), TravelTripsActivity.class));
+        });
+
+        binding.cardOverviewSpecial.setOnClickListener(v -> {
+            startActivity(new Intent(requireContext(), SpecialExpensesActivity.class));
+        });
+
         // Trigger entrance animations
         try {
             binding.cardBalance.startAnimation(AnimationUtils.loadAnimation(requireContext(), R.anim.card_entrance));
@@ -140,16 +163,34 @@ public class HomeFragment extends Fragment {
         long availableBalanceMinor = 1650000; // Base opening balance across accounts: ₹16,500
         long todayExpenseMinor = 0;
         long todayReceivedMinor = 0;
+        long monthExpenseMinor = 0;
+        long travelExpenseMinor = 0;
+        long specialExpenseMinor = 0;
 
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        String thisMonth = new SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(new Date());
 
         for (TransactionEntity tx : transactions) {
             if (!"completed".equalsIgnoreCase(tx.status)) continue;
 
             if ("expense".equalsIgnoreCase(tx.type)) {
                 availableBalanceMinor -= tx.amountMinor;
-                if (tx.transactionDate != null && tx.transactionDate.startsWith(today)) {
-                    todayExpenseMinor += tx.amountMinor;
+
+                if (tx.transactionDate != null) {
+                    if (tx.transactionDate.startsWith(today)) {
+                        todayExpenseMinor += tx.amountMinor;
+                    }
+                    if (tx.transactionDate.startsWith(thisMonth)) {
+                        monthExpenseMinor += tx.amountMinor;
+                    }
+                }
+
+                if ("TRAVEL".equalsIgnoreCase(tx.expenseGroup) || tx.tripId != null) {
+                    travelExpenseMinor += tx.amountMinor;
+                }
+
+                if ("SPECIAL".equalsIgnoreCase(tx.expenseGroup)) {
+                    specialExpenseMinor += tx.amountMinor;
                 }
             } else if ("received".equalsIgnoreCase(tx.type)) {
                 availableBalanceMinor += tx.amountMinor;
@@ -167,6 +208,12 @@ public class HomeFragment extends Fragment {
             binding.tvAvailableBalance.setText(FinancialEngine.formatMinorToSimpleINR(availableBalanceMinor));
             binding.tvTodayExpense.setText(FinancialEngine.formatMinorToSimpleINR(todayExpenseMinor));
             binding.tvTodayReceived.setText(FinancialEngine.formatMinorToSimpleINR(todayReceivedMinor));
+
+            // Expense Overview 4 cards
+            binding.tvOverviewToday.setText(FinancialEngine.formatMinorToSimpleINR(todayExpenseMinor));
+            binding.tvOverviewMonth.setText(FinancialEngine.formatMinorToSimpleINR(monthExpenseMinor));
+            binding.tvOverviewTravel.setText(FinancialEngine.formatMinorToSimpleINR(travelExpenseMinor));
+            binding.tvOverviewSpecial.setText(FinancialEngine.formatMinorToSimpleINR(specialExpenseMinor));
         }
     }
 

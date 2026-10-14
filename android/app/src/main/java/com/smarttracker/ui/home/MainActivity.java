@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.view.animation.AnimationUtils;
+import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -18,6 +20,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.smarttracker.R;
 import com.smarttracker.core.common.FinancialEngine;
 import com.smarttracker.data.local.entity.TransactionEntity;
+import com.smarttracker.data.local.entity.TripEntity;
 import com.smarttracker.data.repository.TransactionRepository;
 import com.smarttracker.data.session.SessionManager;
 import com.smarttracker.databinding.ActivityMainBinding;
@@ -32,9 +35,12 @@ import com.smarttracker.ui.voice.VoiceAssistantBottomSheetDialog;
 import com.smarttracker.ui.voice.VoiceCommandModel;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -188,6 +194,12 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    public void openActivityWithFilter(String filterMode) {
+        switchFragment(activityFragment);
+        updateNavIcons(binding.ivNavActivity, binding.tvNavActivity);
+        activityFragment.setInitialFilter(filterMode);
+    }
+
     private void showTransactionEntrySheet(String type, String defaultDescription) {
         BottomSheetDialog formDialog = new BottomSheetDialog(this);
         BottomSheetAddTransactionBinding formBinding = BottomSheetAddTransactionBinding.inflate(getLayoutInflater());
@@ -202,6 +214,40 @@ public class MainActivity extends AppCompatActivity {
         });
 
         formBinding.btnFormCancel.setOnClickListener(v -> formDialog.dismiss());
+
+        // Trips Dropdown Setup
+        List<TripEntity> tripsList = new ArrayList<>();
+        List<String> tripDisplayNames = new ArrayList<>();
+        tripDisplayNames.add("No Trip / General");
+        ArrayAdapter<String> tripAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, tripDisplayNames);
+        formBinding.spinnerTrips.setAdapter(tripAdapter);
+
+        String userId = sessionManager.getUserId();
+        repository.getTripsByUserLive(userId).observe(this, trips -> {
+            if (trips != null) {
+                tripsList.clear();
+                tripsList.addAll(trips);
+                tripDisplayNames.clear();
+                tripDisplayNames.add("No Trip / General");
+                for (TripEntity t : trips) {
+                    tripDisplayNames.add(t.name + " (" + t.destination + ")");
+                }
+                tripAdapter.notifyDataSetChanged();
+            }
+        });
+
+        formBinding.rgExpenseGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.rb_grp_travel) {
+                formBinding.layoutTravelOptions.setVisibility(View.VISIBLE);
+                formBinding.layoutSpecialOptions.setVisibility(View.GONE);
+            } else if (checkedId == R.id.rb_grp_special) {
+                formBinding.layoutTravelOptions.setVisibility(View.GONE);
+                formBinding.layoutSpecialOptions.setVisibility(View.VISIBLE);
+            } else {
+                formBinding.layoutTravelOptions.setVisibility(View.GONE);
+                formBinding.layoutSpecialOptions.setVisibility(View.GONE);
+            }
+        });
 
         formBinding.btnFormSave.setOnClickListener(v -> {
             String amountStr = formBinding.etAmount.getText() != null ? formBinding.etAmount.getText().toString().trim() : "";
@@ -219,8 +265,22 @@ public class MainActivity extends AppCompatActivity {
             if (formBinding.rbAccCash.isChecked()) accountId = "acc_cash";
             if (formBinding.rbAccBank.isChecked()) accountId = "acc_bank";
 
+            String expenseGroup = "GENERAL";
+            String tripId = null;
+            boolean isImportant = false;
+
+            if (formBinding.rbGrpTravel.isChecked()) {
+                expenseGroup = "TRAVEL";
+                int selectedPos = formBinding.spinnerTrips.getSelectedItemPosition();
+                if (selectedPos > 0 && selectedPos - 1 < tripsList.size()) {
+                    tripId = tripsList.get(selectedPos - 1).id;
+                }
+            } else if (formBinding.rbGrpSpecial.isChecked()) {
+                expenseGroup = "SPECIAL";
+                isImportant = formBinding.cbIsImportant.isChecked();
+            }
+
             String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(new Date());
-            String userId = sessionManager.getUserId();
 
             TransactionEntity tx = new TransactionEntity(
                     UUID.randomUUID().toString(),
@@ -237,7 +297,10 @@ public class MainActivity extends AppCompatActivity {
                     null,
                     null,
                     false,
-                    System.currentTimeMillis()
+                    System.currentTimeMillis(),
+                    expenseGroup,
+                    tripId,
+                    isImportant
             );
 
             repository.insertTransaction(tx);
@@ -250,6 +313,7 @@ public class MainActivity extends AppCompatActivity {
 
         formDialog.show();
     }
+
 
     public void showVoiceAssistantDialog() {
         VoiceAssistantBottomSheetDialog voiceDialog = new VoiceAssistantBottomSheetDialog(this, repository);

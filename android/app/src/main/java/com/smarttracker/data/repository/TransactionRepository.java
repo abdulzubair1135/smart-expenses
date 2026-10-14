@@ -9,11 +9,13 @@ import com.smarttracker.data.local.dao.AccountDao;
 import com.smarttracker.data.local.dao.CategoryDao;
 import com.smarttracker.data.local.dao.SavingGoalDao;
 import com.smarttracker.data.local.dao.TransactionDao;
+import com.smarttracker.data.local.dao.TripDao;
 import com.smarttracker.data.local.dao.UpcomingExpenseDao;
 import com.smarttracker.data.local.entity.AccountEntity;
 import com.smarttracker.data.local.entity.CategoryEntity;
 import com.smarttracker.data.local.entity.SavingGoalEntity;
 import com.smarttracker.data.local.entity.TransactionEntity;
+import com.smarttracker.data.local.entity.TripEntity;
 import com.smarttracker.data.local.entity.UpcomingExpenseEntity;
 
 import java.util.List;
@@ -25,6 +27,7 @@ public class TransactionRepository {
     private final CategoryDao categoryDao;
     private final SavingGoalDao savingGoalDao;
     private final UpcomingExpenseDao upcomingExpenseDao;
+    private final TripDao tripDao;
 
     public TransactionRepository(Application application) {
         AppDatabase db = AppDatabase.getDatabase(application);
@@ -33,6 +36,7 @@ public class TransactionRepository {
         this.categoryDao = db.categoryDao();
         this.savingGoalDao = db.savingGoalDao();
         this.upcomingExpenseDao = db.upcomingExpenseDao();
+        this.tripDao = db.tripDao();
     }
 
     public LiveData<List<TransactionEntity>> getAllTransactionsLive(String userId) {
@@ -65,5 +69,53 @@ public class TransactionRepository {
 
     public void deleteTransaction(String id) {
         AppDatabase.databaseWriteExecutor.execute(() -> transactionDao.deleteById(id));
+    }
+
+    // ==========================================
+    // TRIPS OPERATIONS
+    // ==========================================
+
+    public LiveData<List<TripEntity>> getTripsByUserLive(String userId) {
+        return tripDao.getTripsByUserLive(userId);
+    }
+
+    public LiveData<TripEntity> getTripByIdLive(String id) {
+        return tripDao.getTripByIdLive(id);
+    }
+
+    public void insertTrip(TripEntity trip) {
+        AppDatabase.databaseWriteExecutor.execute(() -> tripDao.insert(trip));
+    }
+
+    public void updateTrip(TripEntity trip) {
+        AppDatabase.databaseWriteExecutor.execute(() -> tripDao.update(trip));
+    }
+
+    public void deleteTrip(String id) {
+        AppDatabase.databaseWriteExecutor.execute(() -> tripDao.deleteById(id));
+    }
+
+    // ==========================================
+    // PERIOD & EXPENSE GROUPS LIVE DATA
+    // ==========================================
+
+    public LiveData<List<TransactionEntity>> getExpensesByDayLive(String userId, String datePrefix) {
+        return transactionDao.getExpensesByDayLive(userId, datePrefix);
+    }
+
+    public LiveData<List<TransactionEntity>> getExpensesByMonthLive(String userId, String monthPrefix) {
+        return transactionDao.getExpensesByMonthLive(userId, monthPrefix);
+    }
+
+    public LiveData<List<TransactionEntity>> getTravelExpensesLive(String userId) {
+        return transactionDao.getTravelExpensesLive(userId);
+    }
+
+    public LiveData<List<TransactionEntity>> getTransactionsByTripLive(String userId, String tripId) {
+        return transactionDao.getTransactionsByTripLive(userId, tripId);
+    }
+
+    public LiveData<List<TransactionEntity>> getSpecialExpensesLive(String userId) {
+        return transactionDao.getSpecialExpensesLive(userId);
     }
 }

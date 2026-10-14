@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_main"
+    android:orientation="vertical">
+
+    <!-- Top Toolbar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="12dp">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Back"
+            android:src="@drawable/ic_back"
+            app:tint="@color/text_primary" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="Travel &amp; Trips"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_create_trip"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="+ Trip"
+            android:textAllCaps="false"
+            android:textColor="@color/text_on_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/brand_primary"
+            app:cornerRadius="10dp" />
+    </LinearLayout>
+
+    <!-- Spending Summary Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="4dp"
+        app:cardBackgroundColor="@color/brand_primary"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="2dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Total Travel Spending"
+                android:textColor="@color/brand_primary_light"
+                android:textSize="12.5sp" />
+
+            <TextView
+                android:id="@+id/tv_total_travel_spent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="₹ 0"
+                android:textColor="@color/text_on_primary"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_travel_meta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="0 trips recorded • Calculated from Room transactions"
+                android:textColor="@color/brand_primary_light"
+                android:textSize="11.5sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Trip Status Filter Chips -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="14dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_filter_all_trips"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="All"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btn_filter_active_trips"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:text="Active"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btn_filter_completed_trips"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:text="Completed"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- RecyclerView of Trips -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_trips"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="24dp" />
+
+    <!-- Empty State -->
+    <TextView
+        android:id="@+id/tv_empty_trips"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
+        android:gravity="center"
+        android:text="No trips yet.\nTap '+ Trip' to create a new trip and organize expenses!"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+</LinearLayout>

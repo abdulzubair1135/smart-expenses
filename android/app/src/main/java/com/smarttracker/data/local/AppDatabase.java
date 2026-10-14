@@ -12,12 +12,15 @@ import com.smarttracker.data.local.dao.AccountDao;
 import com.smarttracker.data.local.dao.CategoryDao;
 import com.smarttracker.data.local.dao.SavingGoalDao;
 import com.smarttracker.data.local.dao.TransactionDao;
+import com.smarttracker.data.local.dao.TripDao;
 import com.smarttracker.data.local.dao.UpcomingExpenseDao;
 import com.smarttracker.data.local.entity.AccountEntity;
 import com.smarttracker.data.local.entity.CategoryEntity;
 import com.smarttracker.data.local.entity.SavingGoalEntity;
 import com.smarttracker.data.local.entity.TransactionEntity;
+import com.smarttracker.data.local.entity.TripEntity;
 import com.smarttracker.data.local.entity.UpcomingExpenseEntity;
+import androidx.room.migration.Migration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,8 +32,9 @@ import java.util.concurrent.Executors;
         AccountEntity.class,
         CategoryEntity.class,
         SavingGoalEntity.class,
-        UpcomingExpenseEntity.class
-}, version = 1, exportSchema = false)
+        UpcomingExpenseEntity.class,
+        TripEntity.class
+}, version = 2, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     public abstract TransactionDao transactionDao();
@@ -38,9 +42,32 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract CategoryDao categoryDao();
     public abstract SavingGoalDao savingGoalDao();
     public abstract UpcomingExpenseDao upcomingExpenseDao();
+    public abstract TripDao tripDao();
 
     private static volatile AppDatabase INSTANCE;
     public static final ExecutorService databaseWriteExecutor = Executors.newFixedThreadPool(4);
+
+    public static final Migration MIGRATION_1_2 = new Migration(1, 2) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE transactions ADD COLUMN expenseGroup TEXT DEFAULT 'GENERAL'");
+            database.execSQL("ALTER TABLE transactions ADD COLUMN tripId TEXT");
+            database.execSQL("ALTER TABLE transactions ADD COLUMN isImportant INTEGER NOT NULL DEFAULT 0");
+
+            database.execSQL("CREATE TABLE IF NOT EXISTS trips (" +
+                    "id TEXT PRIMARY KEY NOT NULL, " +
+                    "userId TEXT NOT NULL, " +
+                    "name TEXT NOT NULL, " +
+                    "destination TEXT NOT NULL, " +
+                    "startDate TEXT NOT NULL, " +
+                    "endDate TEXT NOT NULL, " +
+                    "description TEXT, " +
+                    "status TEXT NOT NULL, " +
+                    "createdAt INTEGER NOT NULL, " +
+                    "updatedAt INTEGER NOT NULL, " +
+                    "isSynced INTEGER NOT NULL DEFAULT 0)");
+        }
+    };
 
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCE == null) {
@@ -48,6 +75,8 @@ public abstract class AppDatabase extends RoomDatabase {
                 if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "smart_expenses.db")
+                            .addMigrations(MIGRATION_1_2)
+                            .fallbackToDestructiveMigration()
                             .addCallback(sRoomDatabaseCallback)
                             .build();
                 }

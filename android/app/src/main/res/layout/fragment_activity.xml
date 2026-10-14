@@ -21,7 +21,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:text="Real-time audit of all income, expenses and transfers"
+        android:text="Real-time audit of daily, monthly, travel and special expenses"
         android:textColor="@color/text_secondary"
         android:textSize="12sp" />
 
@@ -69,6 +69,42 @@
                 android:textSize="12sp" />
 
             <Button
+                android:id="@+id/btn_filter_daily"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="Daily"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_filter_monthly"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="Monthly"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_filter_travel"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="Travel"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_filter_special"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="Special"
+                android:textSize="12sp" />
+
+            <Button
                 android:id="@+id/btn_filter_expense"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="wrap_content"
@@ -83,7 +119,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="6dp"
-                android:text="Received"
+                android:text="Income"
                 android:textSize="12sp" />
 
             <Button
@@ -105,6 +141,105 @@
 
         </LinearLayout>
     </HorizontalScrollView>
+
+    <!-- Period Navigator Card (for Daily / Monthly) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_period_nav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="1dp"
+        app:strokeColor="@color/border_light"
+        app:strokeWidth="1dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_period_prev"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="40dp"
+                    android:layout_height="38dp"
+                    android:padding="0dp"
+                    android:text="‹"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_period_label"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="Today, 15 Oct 2026"
+                    android:textColor="@color/brand_primary_dark"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btn_period_next"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="40dp"
+                    android:layout_height="38dp"
+                    android:padding="0dp"
+                    android:text="›"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="8dp"
+                android:background="@color/border_light" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_period_spending"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Spent: ₹0"
+                    android:textColor="@color/financial_expense"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_period_comparison"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="vs Prev: ₹0"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_period_breakdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Category breakdown..."
+                android:textColor="@color/text_tertiary"
+                android:textSize="11sp" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Empty State -->
     <LinearLayout

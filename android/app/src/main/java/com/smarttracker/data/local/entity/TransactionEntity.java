@@ -2,6 +2,7 @@ package com.smarttracker.data.local.entity;
 
 import androidx.annotation.NonNull;
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
 @Entity(tableName = "transactions")
@@ -45,11 +46,17 @@ public class TransactionEntity {
 
     public long createdAt;
 
+    // Period & Expense Group Classifications
+    public String expenseGroup; // GENERAL, TRAVEL, SPECIAL
+    public String tripId; // Nullable, linked to trips table
+    public boolean isImportant; // Flag for special / emergency transactions
+
     public TransactionEntity(@NonNull String id, @NonNull String userId, @NonNull String accountId,
                              @NonNull String type, long amountMinor, @NonNull String currencyCode,
                              String categoryId, String description, @NonNull String transactionDate,
                              @NonNull String status, String idempotencyKey, String relatedPerson,
-                             String destinationAccountId, boolean isSynced, long createdAt) {
+                             String destinationAccountId, boolean isSynced, long createdAt,
+                             String expenseGroup, String tripId, boolean isImportant) {
         this.id = id;
         this.userId = userId;
         this.accountId = accountId;
@@ -65,5 +72,19 @@ public class TransactionEntity {
         this.destinationAccountId = destinationAccountId;
         this.isSynced = isSynced;
         this.createdAt = createdAt;
+        this.expenseGroup = (expenseGroup != null && !expenseGroup.trim().isEmpty()) ? expenseGroup : "GENERAL";
+        this.tripId = tripId;
+        this.isImportant = isImportant;
+    }
+
+    @Ignore
+    public TransactionEntity(@NonNull String id, @NonNull String userId, @NonNull String accountId,
+                             @NonNull String type, long amountMinor, @NonNull String currencyCode,
+                             String categoryId, String description, @NonNull String transactionDate,
+                             @NonNull String status, String idempotencyKey, String relatedPerson,
+                             String destinationAccountId, boolean isSynced, long createdAt) {
+        this(id, userId, accountId, type, amountMinor, currencyCode, categoryId, description,
+                transactionDate, status, idempotencyKey, relatedPerson, destinationAccountId, isSynced,
+                createdAt, "GENERAL", null, false);
     }
 }

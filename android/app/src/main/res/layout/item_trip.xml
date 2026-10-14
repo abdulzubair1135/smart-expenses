@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="6dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardBackgroundColor="@color/bg_card"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="1dp"
+    app:strokeColor="@color/border_light"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_trip_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Mumbai Visit"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_trip_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="#DEF7EC"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:text="ACTIVE"
+                android:textColor="#03543F"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_trip_destination"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="📍 Mumbai, Maharashtra"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/tv_trip_dates"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="📅 12 Nov – 15 Nov 2026"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="10dp"
+            android:background="@color/border_light" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Total Spent on Trip:"
+                android:textColor="@color/text_tertiary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tv_trip_total_spent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹ 4,700"
+                android:textColor="@color/financial_expense"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

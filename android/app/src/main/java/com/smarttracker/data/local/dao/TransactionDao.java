@@ -46,4 +46,38 @@ public interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE userId = :userId ORDER BY createdAt DESC LIMIT 1")
     TransactionEntity getLatestTransaction(String userId);
+
+    // ==========================================
+    // PERIOD & EXPENSE GROUP SPECIFIC QUERIES
+    // ==========================================
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND type = 'expense' AND status = 'completed' AND transactionDate LIKE :datePrefix || '%' ORDER BY transactionDate DESC")
+    LiveData<List<TransactionEntity>> getExpensesByDayLive(String userId, String datePrefix);
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND type = 'expense' AND status = 'completed' AND transactionDate LIKE :datePrefix || '%' ORDER BY transactionDate DESC")
+    List<TransactionEntity> getExpensesByDay(String userId, String datePrefix);
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND type = 'expense' AND status = 'completed' AND transactionDate LIKE :monthPrefix || '%' ORDER BY transactionDate DESC")
+    LiveData<List<TransactionEntity>> getExpensesByMonthLive(String userId, String monthPrefix);
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND type = 'expense' AND status = 'completed' AND transactionDate LIKE :monthPrefix || '%' ORDER BY transactionDate DESC")
+    List<TransactionEntity> getExpensesByMonth(String userId, String monthPrefix);
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND type = 'expense' AND status = 'completed' AND (expenseGroup = 'TRAVEL' OR tripId IS NOT NULL) ORDER BY transactionDate DESC")
+    LiveData<List<TransactionEntity>> getTravelExpensesLive(String userId);
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND type = 'expense' AND status = 'completed' AND (expenseGroup = 'TRAVEL' OR tripId IS NOT NULL) ORDER BY transactionDate DESC")
+    List<TransactionEntity> getTravelExpenses(String userId);
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND tripId = :tripId ORDER BY transactionDate DESC")
+    LiveData<List<TransactionEntity>> getTransactionsByTripLive(String userId, String tripId);
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND tripId = :tripId ORDER BY transactionDate DESC")
+    List<TransactionEntity> getTransactionsByTrip(String userId, String tripId);
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND type = 'expense' AND status = 'completed' AND expenseGroup = 'SPECIAL' ORDER BY transactionDate DESC")
+    LiveData<List<TransactionEntity>> getSpecialExpensesLive(String userId);
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND type = 'expense' AND status = 'completed' AND expenseGroup = 'SPECIAL' ORDER BY transactionDate DESC")
+    List<TransactionEntity> getSpecialExpenses(String userId);
 }

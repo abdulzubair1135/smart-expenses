@@ -32,3 +32,20 @@
 ## 3. Account Balance Formula
 $$\text{Calculated Balance} = \text{Opening Balance} + \sum \text{Received} + \sum \text{Borrow} - \sum \text{Expense} - \sum \text{Lend} + \Delta\text{Transfers}$$
 - The dashboard balance is computed directly from completed transactions; it is never hardcoded.
+
+## 4. Expense Groups & Period-Wise Tracking Rules
+
+### Single Financial Truth (No Double-Counting)
+- **Time Periods (Daily / Monthly):** Daily and Monthly are dynamic date-range queries applied to `transaction_date`, **NOT** transaction types or duplicated rows.
+- **Expense Groups (General / Travel / Special):** Travel and Special are semantic classifications (`expense_group = GENERAL | TRAVEL | SPECIAL`).
+- An expense of ₹500 recorded as `TRAVEL` linked to a trip remains a single transaction:
+  - It counts exactly ₹500 towards the day's expense.
+  - It counts exactly ₹500 towards the month's expense.
+  - It contributes ₹500 to the trip's spending total.
+  - It reduces liquid balance by ₹500 exactly once.
+- Marking an expense as `SPECIAL` (emergency / one-time) tags `is_important = true` or `expense_group = SPECIAL` on the single record without creating duplicate ledger entries.
+
+### Trips Module Isolation
+- A **Trip** is a thematic spending bucket with metadata (`name`, `destination`, `start_date`, `end_date`, `status`), **NOT** an account. It cannot hold liquid cash or change net worth independently.
+- Deleting a trip with existing transactions safely transitions the trip to `archived` status, preserving all financial audit trails and foreign key referential integrity.
+

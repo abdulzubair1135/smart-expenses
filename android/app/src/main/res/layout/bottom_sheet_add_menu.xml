@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/ic_launcher_foreground"
+    android:backgroundTint="@color/bg_card"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="Add Transaction"
+        android:textColor="@color/text_primary"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:columnCount="2"
+        android:rowCount="3">
+
+        <!-- 1. Expense -->
+        <LinearLayout
+            android:id="@+id/btn_action_expense"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            android:background="@drawable/ic_launcher_foreground"
+            android:backgroundTint="#FEE2E2"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_delete"
+                app:tint="@color/financial_expense" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Expense"
+                android:textColor="@color/financial_expense"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 2. Received -->
+        <LinearLayout
+            android:id="@+id/btn_action_received"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            android:background="@drawable/ic_launcher_foreground"
+            android:backgroundTint="#DCFCE7"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_input_add"
+                app:tint="@color/financial_income" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Received"
+                android:textColor="@color/financial_income"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 3. Lend -->
+        <LinearLayout
+            android:id="@+id/btn_action_lend"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            android:background="@drawable/ic_launcher_foreground"
+            android:backgroundTint="#FEF3C7"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_send"
+                app:tint="@color/financial_lend" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Lend"
+                android:textColor="@color/financial_lend"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 4. Borrow -->
+        <LinearLayout
+            android:id="@+id/btn_action_borrow"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            android:background="@drawable/ic_launcher_foreground"
+            android:backgroundTint="#EDE9FE"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_save"
+                app:tint="@color/financial_borrow" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Borrow"
+                android:textColor="@color/financial_borrow"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 5. Transfer -->
+        <LinearLayout
+            android:id="@+id/btn_action_transfer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            android:background="@drawable/ic_launcher_foreground"
+            android:backgroundTint="#DBEAFE"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_rotate"
+                app:tint="@color/financial_transfer" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Transfer"
+                android:textColor="@color/financial_transfer"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 6. Voice Add -->
+        <LinearLayout
+            android:id="@+id/btn_action_voice"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            android:background="@drawable/ic_launcher_foreground"
+            android:backgroundTint="#FCE7F3"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_btn_speak_now"
+                app:tint="#DB2777" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Voice Add"
+                android:textColor="#DB2777"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </GridLayout>
+
+    <Button
+        android:id="@+id/btn_cancel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="@color/surface_variant"
+        android:text="Cancel"
+        android:textColor="@color/text_primary" />
+
+</LinearLayout>

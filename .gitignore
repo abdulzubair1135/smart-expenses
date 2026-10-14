@@ -1,0 +1,37 @@
+# Android
+android/.gradle/
+android/build/
+android/*/build/
+android/local.properties
+android/*.iml
+android/*/*.iml
+android/.idea/
+android/.cxx/
+*.apk
+*.aab
+
+# Node.js
+dist/
+backend/dist/
+admin/dist/
+node_modules/
+backend/node_modules/
+admin/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment & Credentials
+.env
+backend/.env
+admin/.env
+*.pem
+*.key
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+.vscode/
+.idea/

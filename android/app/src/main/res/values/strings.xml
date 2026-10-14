@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">Smart Expenses Tracker</string>
+    <string name="tagline">Simple • Secure • Offline First</string>
+    
+    <!-- Navigation Tabs -->
+    <string name="nav_home">Home</string>
+    <string name="nav_activity">Activity</string>
+    <string name="nav_add">Add</string>
+    <string name="nav_money">Money</string>
+    <string name="nav_insights">Insights</string>
+
+    <!-- Home Dashboard -->
+    <string name="greeting_default">Good Morning,</string>
+    <string name="available_money">Available Money</string>
+    <string name="todays_expense">Today\'s Expense</string>
+    <string name="todays_received">Today\'s Received</string>
+    <string name="upcoming_payment">Upcoming Payment</string>
+    <string name="saving_goal">Saving Goal</string>
+    <string name="recent_transactions">Recent Transactions</string>
+
+    <!-- Transaction Types -->
+    <string name="type_expense">Expense</string>
+    <string name="type_received">Received</string>
+    <string name="type_lend">Lend</string>
+    <string name="type_borrow">Borrow</string>
+    <string name="type_transfer">Transfer</string>
+    <string name="type_voice_add">Voice Add</string>
+
+    <!-- Actions -->
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_login">Log In</string>
+    <string name="action_register">Register</string>
+    <string name="action_get_started">Get Started</string>
+</resources>

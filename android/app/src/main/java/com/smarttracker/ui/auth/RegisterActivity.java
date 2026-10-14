@@ -16,7 +16,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import com.google.gson.JsonObject;
 import com.smarttracker.R;
+import com.smarttracker.data.remote.BackendApiClient;
 import com.smarttracker.data.session.SessionManager;
 import com.smarttracker.databinding.ActivityRegisterBinding;
 import com.smarttracker.ui.home.MainActivity;
@@ -27,6 +29,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     private ActivityRegisterBinding binding;
     private SessionManager sessionManager;
+    private BackendApiClient apiClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,6 +38,7 @@ public class RegisterActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         sessionManager = SessionManager.getInstance(this);
+        apiClient = BackendApiClient.getInstance(this);
 
         setupConsentText();
 
@@ -146,19 +150,59 @@ public class RegisterActivity extends AppCompatActivity {
         binding.btnRegister.setEnabled(false);
         binding.progressLoading.setVisibility(View.VISIBLE);
 
-        // Store active session in local SessionManager
+        apiClient.register(name, email, password, confirm, true, new BackendApiClient.ApiCallback<JsonObject>() {
+            @Override
+            public void onSuccess(JsonObject result) {
+                binding.btnRegister.setEnabled(true);
+                binding.progressLoading.setVisibility(View.GONE);
+
+                try {
+                    JsonObject data = result.getAsJsonObject("data");
+                    JsonObject user = data.getAsJsonObject("user");
+                    String token = data.get("token").getAsString();
+                    String userId = user.get("id").getAsString();
+                    String displayName = user.has("displayName") ? user.get("displayName").getAsString() : name;
+
+                    sessionManager.saveLoginSession(token, userId, displayName, email);
+                    sessionManager.recordConsent("2026.1");
+
+                    Toast.makeText(RegisterActivity.this, "Welcome " + displayName + "! Account created successfully.", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(RegisterActivity.this, MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                } catch (Exception e) {
+                    fallbackLocalRegistration(name, email);
+                }
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                binding.btnRegister.setEnabled(true);
+                binding.progressLoading.setVisibility(View.GONE);
+
+                if (errorMessage != null && errorMessage.toLowerCase().contains("already exists")) {
+                    binding.tilEmail.setError("An account with this email already exists");
+                } else {
+                    // Offline fallback
+                    Toast.makeText(RegisterActivity.this, "Network offline: creating local-first account", Toast.LENGTH_SHORT).show();
+                    fallbackLocalRegistration(name, email);
+                }
+            }
+        });
+    }
+
+    private void fallbackLocalRegistration(String name, String email) {
         String generatedUserId = "usr-" + System.currentTimeMillis();
-        String token = "demo-token-" + generatedUserId;
+        String token = "local-token-" + generatedUserId;
 
         sessionManager.saveLoginSession(token, generatedUserId, name, email);
         sessionManager.recordConsent("2026.1");
 
-        binding.progressLoading.postDelayed(() -> {
-            Toast.makeText(this, "Welcome " + name + "! Account created successfully.", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(RegisterActivity.this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        }, 600);
+        Toast.makeText(this, "Welcome " + name + "! Account created locally.", Toast.LENGTH_SHORT).show();
+        Intent intent = new Intent(RegisterActivity.this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 }

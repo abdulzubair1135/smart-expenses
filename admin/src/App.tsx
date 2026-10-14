@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from './services/api';
-import { AdminMetrics, UserProfile, AuditLog } from './types';
+import { AdminMetrics, UserProfile, AuditLog, ActivityEvent } from './types';
 import { 
   Users, Activity, ShieldCheck, Database, CheckCircle, 
-  AlertTriangle, RefreshCw, LogOut, Search, Cpu
+  AlertTriangle, RefreshCw, LogOut, Search, Cpu,
+  HardDrive, Clock, Lock, X
 } from 'lucide-react';
 
 export default function App() {
   const [adminKey, setAdminKey] = useState<string>(localStorage.getItem('adminKey') || '');
+  const [apiEndpoint, setApiEndpoint] = useState<string>(adminApi.getBaseUrl());
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -17,6 +19,11 @@ export default function App() {
   const [loginInput, setLoginInput] = useState('smart-expenses-admin-secret-2026');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // User activity modal state
+  const [selectedUserForActivity, setSelectedUserForActivity] = useState<UserProfile | null>(null);
+  const [userActivities, setUserActivities] = useState<ActivityEvent[]>([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
 
   const loadData = async (key: string) => {
     try {
@@ -33,7 +40,7 @@ export default function App() {
       setIsAuthenticated(true);
       localStorage.setItem('adminKey', key);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Authentication failed. Invalid Admin Key.');
+      setErrorMsg(err.message || 'Authentication failed. Invalid Admin Key or unreachable server.');
       setIsAuthenticated(false);
     } finally {
       setLoading(false);
@@ -48,6 +55,7 @@ export default function App() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    adminApi.setBaseUrl(apiEndpoint);
     setAdminKey(loginInput);
     loadData(loginInput);
   };
@@ -64,6 +72,19 @@ export default function App() {
       await loadData(adminKey);
     } catch (e: any) {
       alert('Error updating status: ' + e.message);
+    }
+  };
+
+  const handleViewActivity = async (user: UserProfile) => {
+    try {
+      setSelectedUserForActivity(user);
+      setLoadingActivity(true);
+      const events = await adminApi.getUserActivity(adminKey, user.id);
+      setUserActivities(events);
+    } catch (e: any) {
+      alert('Error fetching user activity: ' + e.message);
+    } finally {
+      setLoadingActivity(false);
     }
   };
 
@@ -89,6 +110,20 @@ export default function App() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
+                API Base Endpoint
+              </label>
+              <input
+                type="text"
+                value={apiEndpoint}
+                onChange={(e) => setApiEndpoint(e.target.value)}
+                placeholder="https://smart-expenses-8pf3.onrender.com/api/v1/admin"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs"
+              />
+              <span className="text-[10px] text-gray-400">Default: Live Render Production Server</span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
                 Admin Secret Key
               </label>
               <input
@@ -99,6 +134,7 @@ export default function App() {
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm"
               />
             </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -109,7 +145,7 @@ export default function App() {
           </form>
 
           <p className="text-xs text-center text-gray-400">
-            Protected endpoint with server-verified credentials & audit logging.
+            Protected endpoint with server-verified credentials & zero-knowledge financial privacy wall.
           </p>
         </div>
       </div>
@@ -170,7 +206,10 @@ export default function App() {
           </button>
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-slate-800 space-y-2">
+          <div className="px-3 py-1.5 bg-slate-800 rounded-lg text-[11px] font-mono text-slate-400 truncate">
+            Target: {apiEndpoint}
+          </div>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition"
@@ -186,11 +225,11 @@ export default function App() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 capitalize">
               {activeTab === 'overview' && 'System Overview & Analytics'}
-              {activeTab === 'users' && 'User Account Management'}
+              {activeTab === 'users' && 'User Account & Presence Monitoring'}
               {activeTab === 'health' && 'Infrastructure & API Health'}
               {activeTab === 'audit' && 'Security & Administration Audit Trail'}
             </h1>
-            <p className="text-sm text-gray-500">Live metrics from backend service at http://localhost:4000</p>
+            <p className="text-sm text-gray-500">Live operational telemetry & zero-knowledge privacy enforcement</p>
           </div>
           <button
             onClick={() => loadData(adminKey)}
@@ -213,38 +252,56 @@ export default function App() {
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                <span className="text-xs font-semibold uppercase text-gray-400">Transactions Recorded</span>
-                <div className="text-3xl font-bold text-indigo-600 mt-2">{metrics.totalTransactionsRecorded}</div>
-                <div className="text-xs text-gray-500 mt-1">Real database records</div>
+                <span className="text-xs font-semibold uppercase text-gray-400">Active Presence</span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-3xl font-bold text-emerald-600">{metrics.onlineUsers}</span>
+                  <span className="text-xs text-gray-500">Online now (&le;120s)</span>
+                </div>
+                <div className="text-xs text-gray-400 mt-1">{metrics.offlineUsers} Offline</div>
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                <span className="text-xs font-semibold uppercase text-gray-400">API Status</span>
-                <div className="text-3xl font-bold text-emerald-600 mt-2 uppercase">{metrics.apiHealth}</div>
-                <div className="text-xs text-gray-500 mt-1">Uptime: {metrics.serverUptimeSeconds}s</div>
+                <span className="text-xs font-semibold uppercase text-gray-400">DAU / WAU Engagement</span>
+                <div className="text-3xl font-bold text-indigo-600 mt-2">{metrics.dailyActiveUsers} <span className="text-sm font-normal text-gray-500">/ {metrics.weeklyActiveUsers} WAU</span></div>
+                <div className="text-xs text-gray-500 mt-1">Daily unique active users</div>
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                <span className="text-xs font-semibold uppercase text-gray-400">Database Status</span>
-                <div className="text-3xl font-bold text-emerald-600 mt-2 uppercase">{metrics.databaseConnectivity}</div>
-                <div className="text-xs text-gray-500 mt-1">Sync Failures: {metrics.syncFailuresCount}</div>
+                <span className="text-xs font-semibold uppercase text-gray-400">Verified Backups</span>
+                <div className="text-3xl font-bold text-emerald-600 mt-2">{metrics.totalBackupsCompleted}</div>
+                <div className="text-xs text-gray-500 mt-1">Failed operations: {metrics.totalBackupsFailed}</div>
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-              <h3 className="font-semibold text-gray-900 mb-4">Account Verification Breakdown</h3>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-4 bg-emerald-50 rounded-xl">
-                  <span className="text-xs text-emerald-700 font-medium">Verified</span>
-                  <div className="text-2xl font-bold text-emerald-800 mt-1">{metrics.verifiedUsers}</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <h3 className="font-semibold text-gray-900 mb-4">Account Verification Breakdown</h3>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="p-4 bg-emerald-50 rounded-xl">
+                    <span className="text-xs text-emerald-700 font-medium">Verified</span>
+                    <div className="text-2xl font-bold text-emerald-800 mt-1">{metrics.verifiedUsers}</div>
+                  </div>
+                  <div className="p-4 bg-amber-50 rounded-xl">
+                    <span className="text-xs text-amber-700 font-medium">Unverified</span>
+                    <div className="text-2xl font-bold text-amber-800 mt-1">{metrics.unverifiedUsers}</div>
+                  </div>
+                  <div className="p-4 bg-red-50 rounded-xl">
+                    <span className="text-xs text-red-700 font-medium">Suspended</span>
+                    <div className="text-2xl font-bold text-red-800 mt-1">{metrics.suspendedUsers}</div>
+                  </div>
                 </div>
-                <div className="p-4 bg-amber-50 rounded-xl">
-                  <span className="text-xs text-amber-700 font-medium">Unverified</span>
-                  <div className="text-2xl font-bold text-amber-800 mt-1">{metrics.unverifiedUsers}</div>
-                </div>
-                <div className="p-4 bg-red-50 rounded-xl">
-                  <span className="text-xs text-red-700 font-medium">Suspended</span>
-                  <div className="text-2xl font-bold text-red-800 mt-1">{metrics.suspendedUsers}</div>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-emerald-600" /> Strict Financial Privacy Wall
+                </h3>
+                <p className="text-xs text-gray-600 leading-relaxed mb-4">
+                  In compliance with zero-knowledge financial privacy rules, the administration console is architecturally isolated from user monetary transactions, account balances, and memo details.
+                </p>
+                <div className="p-3 bg-emerald-50 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+                  <span>Privacy Wall Active: Administrators cannot view user balances or transaction values.</span>
                 </div>
               </div>
             </div>
@@ -271,10 +328,10 @@ export default function App() {
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-gray-600 text-xs uppercase font-semibold">
                 <tr>
-                  <th className="p-4">User ID</th>
-                  <th className="p-4">Display Name</th>
-                  <th className="p-4">Email</th>
+                  <th className="p-4">User</th>
+                  <th className="p-4">Presence</th>
                   <th className="p-4">Account Status</th>
+                  <th className="p-4">Latest Backup</th>
                   <th className="p-4">Registered Date</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
@@ -282,9 +339,30 @@ export default function App() {
               <tbody className="divide-y divide-gray-100">
                 {filteredUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-gray-50/50">
-                    <td className="p-4 font-mono text-xs text-gray-500">{u.id}</td>
-                    <td className="p-4 font-medium text-gray-900">{u.displayName}</td>
-                    <td className="p-4 text-gray-600">{u.email}</td>
+                    <td className="p-4">
+                      <div className="font-medium text-gray-900">{u.displayName}</div>
+                      <div className="text-xs text-gray-500">{u.email}</div>
+                      <div className="font-mono text-[10px] text-gray-400">{u.id}</div>
+                    </td>
+                    <td className="p-4">
+                      {u.isOnline ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          Online
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                          Offline
+                        </span>
+                      )}
+                      {u.lastHeartbeatAt && (
+                        <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                          <Clock className="w-2.5 h-2.5" />
+                          {new Date(u.lastHeartbeatAt).toLocaleTimeString()}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase ${
                         u.accountStatus === 'verified' ? 'bg-emerald-100 text-emerald-800' :
@@ -293,19 +371,35 @@ export default function App() {
                         {u.accountStatus}
                       </span>
                     </td>
+                    <td className="p-4">
+                      {u.backupStatus === 'completed' ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
+                          <HardDrive className="w-3 h-3" />
+                          {u.latestBackupAt ? new Date(u.latestBackupAt).toLocaleDateString() : 'Active'}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">No backup yet</span>
+                      )}
+                    </td>
                     <td className="p-4 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
-                    <td className="p-4 text-right">
+                    <td className="p-4 text-right space-x-2">
+                      <button
+                        onClick={() => handleViewActivity(u)}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded bg-indigo-50 hover:bg-indigo-100 transition"
+                      >
+                        Activity
+                      </button>
                       {u.accountStatus !== 'suspended' ? (
                         <button
                           onClick={() => handleStatusChange(u.id, 'suspended')}
-                          className="text-xs text-red-600 hover:underline font-medium"
+                          className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition"
                         >
                           Suspend
                         </button>
                       ) : (
                         <button
                           onClick={() => handleStatusChange(u.id, 'verified')}
-                          className="text-xs text-emerald-600 hover:underline font-medium"
+                          className="text-xs text-emerald-600 hover:text-emerald-800 font-medium px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 transition"
                         >
                           Reactivate
                         </button>
@@ -345,16 +439,16 @@ export default function App() {
                 <Cpu className="w-5 h-5 text-indigo-600" /> Node.js Express Runtime
               </h3>
               <p className="text-sm text-gray-600">
-                Backend modular monolith running on Node.js v25 with TypeScript and Zod validation.
+                Backend modular monolith running on Node.js v24 with TypeScript, Helmet, and CORS.
               </p>
               <div className="p-4 bg-gray-50 rounded-xl space-y-2 text-xs font-mono">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Node Process:</span>
-                  <span>v25.1.0 LTS</span>
+                  <span className="text-gray-500">Server Architecture:</span>
+                  <span>Express Modular Monolith</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Host Port:</span>
-                  <span>4000 (0.0.0.0)</span>
+                  <span className="text-gray-500">Live Endpoint:</span>
+                  <span className="text-emerald-700 truncate">{apiEndpoint}</span>
                 </div>
               </div>
             </div>
@@ -396,6 +490,68 @@ export default function App() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* USER ACTIVITY MODAL (PRIVACY-WALLED) */}
+        {selectedUserForActivity && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">User Activity Timeline</h3>
+                  <p className="text-xs text-gray-500">{selectedUserForActivity.displayName} ({selectedUserForActivity.email})</p>
+                </div>
+                <button
+                  onClick={() => setSelectedUserForActivity(null)}
+                  className="p-1 rounded-lg text-gray-400 hover:bg-gray-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-2">
+                <Lock className="w-4 h-4 flex-shrink-0 text-amber-600" />
+                <span>Zero-Knowledge Privacy Wall: Monetary transaction amounts, personal notes, and travel itineraries are strictly protected and never stored in activity logs.</span>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto space-y-2">
+                {loadingActivity ? (
+                  <div className="p-8 text-center text-gray-400 flex items-center justify-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Loading timeline...
+                  </div>
+                ) : userActivities.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400 text-xs">
+                    No operational events logged for this user.
+                  </div>
+                ) : (
+                  userActivities.map((evt) => (
+                    <div key={evt.id} className="p-3 bg-gray-50 rounded-xl flex items-center justify-between text-xs">
+                      <div className="space-y-0.5">
+                        <span className="font-semibold text-gray-800 font-mono">{evt.eventType}</span>
+                        <div className="text-[10px] text-gray-400">
+                          {new Date(evt.occurredAt).toLocaleString()}
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                        evt.result === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {evt.result}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="pt-2 text-right">
+                <button
+                  onClick={() => setSelectedUserForActivity(null)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>

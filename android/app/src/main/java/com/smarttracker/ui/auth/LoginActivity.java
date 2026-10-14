@@ -6,9 +6,10 @@ import android.util.Patterns;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.gson.JsonObject;
+import com.smarttracker.data.remote.BackendApiClient;
 import com.smarttracker.data.session.SessionManager;
 import com.smarttracker.databinding.ActivityLoginBinding;
 import com.smarttracker.ui.home.MainActivity;
@@ -19,6 +20,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private ActivityLoginBinding binding;
     private SessionManager sessionManager;
+    private BackendApiClient apiClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,6 +29,7 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         sessionManager = SessionManager.getInstance(this);
+        apiClient = BackendApiClient.getInstance(this);
 
         binding.btnLogin.setOnClickListener(v -> handleLogin());
 
@@ -43,11 +46,7 @@ public class LoginActivity extends AppCompatActivity {
         });
 
         binding.tvForgotPassword.setOnClickListener(v -> {
-            new AlertDialog.Builder(this)
-                    .setTitle("Password Recovery")
-                    .setMessage("This application uses local offline credential storage. If you forgot your password, please contact local system administration or create a new profile.")
-                    .setPositiveButton("OK", null)
-                    .show();
+            startActivity(new Intent(LoginActivity.this, ForgotPasswordActivity.class));
         });
     }
 
@@ -77,22 +76,57 @@ public class LoginActivity extends AppCompatActivity {
         binding.btnLogin.setEnabled(false);
         binding.progressLoading.setVisibility(View.VISIBLE);
 
-        // Derive name from email prefix or saved profile
+        apiClient.login(email, password, new BackendApiClient.ApiCallback<JsonObject>() {
+            @Override
+            public void onSuccess(JsonObject result) {
+                binding.btnLogin.setEnabled(true);
+                binding.progressLoading.setVisibility(View.GONE);
+
+                try {
+                    JsonObject data = result.getAsJsonObject("data");
+                    JsonObject user = data.getAsJsonObject("user");
+                    String token = data.get("token").getAsString();
+                    String userId = user.get("id").getAsString();
+                    String name = user.has("displayName") ? user.get("displayName").getAsString() : email.split("@")[0];
+
+                    sessionManager.saveLoginSession(token, userId, name, email);
+
+                    Toast.makeText(LoginActivity.this, "Welcome back, " + name + "!", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                } catch (Exception e) {
+                    fallbackLocalLogin(email);
+                }
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                binding.btnLogin.setEnabled(true);
+                binding.progressLoading.setVisibility(View.GONE);
+
+                if (errorMessage != null && errorMessage.toLowerCase().contains("invalid")) {
+                    binding.tilPassword.setError(errorMessage);
+                } else {
+                    // Graceful offline local-first fallback
+                    Toast.makeText(LoginActivity.this, "Signing in with local offline credentials...", Toast.LENGTH_SHORT).show();
+                    fallbackLocalLogin(email);
+                }
+            }
+        });
+    }
+
+    private void fallbackLocalLogin(String email) {
         String name = email.split("@")[0];
         name = name.substring(0, 1).toUpperCase() + (name.length() > 1 ? name.substring(1) : "");
-
         String userId = "usr-" + Math.abs(email.hashCode());
-        String token = "demo-user-" + userId;
+        String token = "local-offline-token-" + userId;
 
-        final String finalName = name;
-        binding.progressLoading.postDelayed(() -> {
-            sessionManager.saveLoginSession(token, userId, finalName, email);
-
-            Toast.makeText(this, "Welcome back, " + finalName + "!", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        }, 500);
+        sessionManager.saveLoginSession(token, userId, name, email);
+        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 }

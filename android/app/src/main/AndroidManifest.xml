@@ -35,6 +35,10 @@
             android:exported="true" />
 
         <activity
+            android:name=".ui.auth.ForgotPasswordActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.legal.TermsActivity"
             android:exported="true" />
 

@@ -11,6 +11,7 @@ export interface Profile {
     privacyVersion: string;
     consentedAt: string;
   };
+  lastLoginAt?: string;
   createdAt: string;
 }
 
@@ -99,6 +100,49 @@ export interface AdminAuditLog {
   createdAt: string;
 }
 
+export interface ActivityEvent {
+  id: string;
+  userId: string;
+  eventType: string;
+  occurredAt: string;
+  result: 'success' | 'failure' | 'pending';
+  requestId?: string;
+  metadata?: Record<string, any>; // Privacy wall: strictly NO transaction amounts or memos
+}
+
+export interface UserPresence {
+  userId: string;
+  lastSeenAt: string;
+  lastHeartbeatAt: string;
+  clientPlatform?: string;
+  updatedAt: string;
+}
+
+export interface BackupRecord {
+  id: string;
+  userId: string;
+  backupType: 'json_export' | 'cloud_snapshot' | 'full_database';
+  status: 'started' | 'completed' | 'failed';
+  startedAt: string;
+  completedAt?: string;
+  recordCount: number;
+  errorCode?: string;
+  storageReference?: string;
+  checksum?: string;
+  createdAt: string;
+}
+
+export interface PasswordReset {
+  id: string;
+  email: string;
+  otpHash: string;
+  resetToken?: string;
+  expiresAt: string;
+  isUsed: boolean;
+  attempts: number;
+  createdAt: string;
+}
+
 export class MemoryStore {
   profiles: Map<string, Profile> = new Map();
   passwords: Map<string, string> = new Map();
@@ -111,30 +155,17 @@ export class MemoryStore {
   trips: Map<string, Trip> = new Map();
   deviceTokens: Map<string, { userId: string; token: string; updatedAt: string }> = new Map();
   auditLogs: AdminAuditLog[] = [];
+  activityEvents: ActivityEvent[] = [];
+  userPresence: Map<string, UserPresence> = new Map();
+  backupRecords: Map<string, BackupRecord> = new Map();
+  passwordResets: Map<string, PasswordReset> = new Map();
 
   constructor() {
     this.seedDefaultData();
   }
 
   seedDefaultData() {
-    const demoUserId = 'd0000000-0000-0000-0000-000000000001';
-    this.profiles.set(demoUserId, {
-      id: demoUserId,
-      email: 'divya@example.com',
-      displayName: 'Divya',
-      accountStatus: 'verified',
-      termsConsent: {
-        termsVersion: '2026.1',
-        privacyVersion: '2026.1',
-        consentedAt: new Date().toISOString()
-      },
-      createdAt: new Date().toISOString()
-    });
-    this.passwords.set(demoUserId, 'password123');
-    this.activeTokens.add('demo-test-token');
-    this.activeTokens.add(`demo-user-${demoUserId}`);
-
-    // Seed default categories
+    // 1. Shared system categories (always required for all users)
     const defaultCats: Category[] = [
       { id: 'cat-food', userId: null, name: 'Food', type: 'expense', iconKey: 'ic_food', colorHex: '#EF4444', createdAt: new Date().toISOString() },
       { id: 'cat-travel', userId: null, name: 'Travel', type: 'expense', iconKey: 'ic_travel', colorHex: '#F59E0B', createdAt: new Date().toISOString() },
@@ -145,116 +176,115 @@ export class MemoryStore {
     ];
     defaultCats.forEach(c => this.categories.set(c.id, c));
 
-    // Seed demo accounts matching UI Reference
-    // Cash: ₹2,000 (200000 paise), Bank: ₹8,000 (800000 paise), UPI: ₹1,500 (150000 paise), Savings: ₹5,000
-    const demoAccounts: Account[] = [
-      { id: 'acc-cash', userId: demoUserId, name: 'Cash', type: 'cash', openingBalanceMinor: 200000, currencyCode: 'INR', createdAt: new Date().toISOString() },
-      { id: 'acc-bank', userId: demoUserId, name: 'Bank', type: 'bank', openingBalanceMinor: 800000, currencyCode: 'INR', createdAt: new Date().toISOString() },
-      { id: 'acc-upi', userId: demoUserId, name: 'UPI', type: 'upi', openingBalanceMinor: 150000, currencyCode: 'INR', createdAt: new Date().toISOString() },
-      { id: 'acc-savings', userId: demoUserId, name: 'Savings', type: 'savings', openingBalanceMinor: 500000, currencyCode: 'INR', createdAt: new Date().toISOString() }
-    ];
-    demoAccounts.forEach(a => this.accounts.set(a.id, a));
+    // 2. Only seed automated test fixtures in test mode (NODE_ENV === 'test')
+    // In production and real execution, zero fake users or fake transactions are inserted.
+    if (process.env.NODE_ENV === 'test') {
+      const demoUserId = 'd0000000-0000-0000-0000-000000000001';
+      this.profiles.set(demoUserId, {
+        id: demoUserId,
+        email: 'divya@example.com',
+        displayName: 'Divya',
+        accountStatus: 'verified',
+        termsConsent: {
+          termsVersion: '2026.1',
+          privacyVersion: '2026.1',
+          consentedAt: new Date().toISOString()
+        },
+        createdAt: new Date().toISOString()
+      });
+      this.passwords.set(demoUserId, 'password123');
+      this.activeTokens.add('demo-test-token');
+      this.activeTokens.add(`demo-user-${demoUserId}`);
 
-    // Seed Saving Goal (Target: ₹30,000, Saved: ₹12,000 = 40%)
-    this.savingGoals.set('goal-1', {
-      id: 'goal-1',
-      userId: demoUserId,
-      title: 'New Phone',
-      targetAmountMinor: 3000000,
-      currentAmountMinor: 1200000,
-      targetDate: '2026-12-31',
-      createdAt: new Date().toISOString()
+      this.accounts.set('acc-cash', { id: 'acc-cash', userId: demoUserId, name: 'Cash', type: 'cash', openingBalanceMinor: 200000, currencyCode: 'INR', createdAt: new Date().toISOString() });
+      this.accounts.set('acc-bank', { id: 'acc-bank', userId: demoUserId, name: 'Bank', type: 'bank', openingBalanceMinor: 800000, currencyCode: 'INR', createdAt: new Date().toISOString() });
+      this.accounts.set('acc-upi', { id: 'acc-upi', userId: demoUserId, name: 'UPI', type: 'upi', openingBalanceMinor: 150000, currencyCode: 'INR', createdAt: new Date().toISOString() });
+
+      const now = new Date();
+      this.transactions.set('tx-1', {
+        id: 'tx-1',
+        userId: demoUserId,
+        accountId: 'acc-upi',
+        type: 'expense',
+        amountMinor: 25000,
+        currencyCode: 'INR',
+        categoryId: 'cat-food',
+        description: 'Lunch',
+        transactionDate: now.toISOString(),
+        status: 'completed',
+        createdAt: now.toISOString()
+      });
+
+      this.trips.set('trip-1', {
+        id: 'trip-1',
+        userId: demoUserId,
+        name: 'Mumbai Visit',
+        destination: 'Mumbai, Maharashtra',
+        startDate: '2026-11-12',
+        endDate: '2026-11-15',
+        description: 'Business travel and client meetings',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      this.transactions.set('tx-travel-1', {
+        id: 'tx-travel-1',
+        userId: demoUserId,
+        accountId: 'acc-bank',
+        type: 'expense',
+        amountMinor: 150000,
+        currencyCode: 'INR',
+        categoryId: 'cat-travel',
+        description: 'Flight tickets',
+        transactionDate: now.toISOString(),
+        status: 'completed',
+        expenseGroup: 'TRAVEL',
+        tripId: 'trip-1',
+        createdAt: now.toISOString()
+      });
+
+      this.transactions.set('tx-special-1', {
+        id: 'tx-special-1',
+        userId: demoUserId,
+        accountId: 'acc-bank',
+        type: 'expense',
+        amountMinor: 250000,
+        currencyCode: 'INR',
+        categoryId: 'cat-others',
+        description: 'Emergency dental surgery',
+        transactionDate: now.toISOString(),
+        status: 'completed',
+        expenseGroup: 'SPECIAL',
+        isImportant: true,
+        createdAt: now.toISOString()
+      });
+    }
+  }
+
+  recordActivity(userId: string, eventType: string, result: 'success' | 'failure' | 'pending' = 'success', metadata?: Record<string, any>) {
+    this.activityEvents.unshift({
+      id: `act-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      userId,
+      eventType,
+      occurredAt: new Date().toISOString(),
+      result,
+      metadata: metadata || {}
     });
+    // Keep bounded history
+    if (this.activityEvents.length > 500) {
+      this.activityEvents.pop();
+    }
+  }
 
-    // Seed Upcoming Expense (Electricity Bill: ₹1,200 due 5 Oct)
-    this.upcomingExpenses.set('up-1', {
-      id: 'up-1',
-      userId: demoUserId,
-      title: 'Electricity Bill',
-      expectedAmountMinor: 120000,
-      dueDate: '2026-10-25',
-      reminderEnabled: true,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    });
-
-    // Seed Transactions matching Screen 3 & 12
-    const now = new Date();
-    this.transactions.set('tx-1', {
-      id: 'tx-1',
-      userId: demoUserId,
-      accountId: 'acc-upi',
-      type: 'expense',
-      amountMinor: 25000, // ₹250
-      currencyCode: 'INR',
-      categoryId: 'cat-food',
-      description: 'Lunch',
-      transactionDate: now.toISOString(),
-      status: 'completed',
-      createdAt: now.toISOString()
-    });
-
-    this.transactions.set('tx-2', {
-      id: 'tx-2',
-      userId: demoUserId,
-      accountId: 'acc-cash',
-      type: 'received',
-      amountMinor: 50000, // ₹500
-      currencyCode: 'INR',
-      categoryId: null,
-      description: 'Rahul - Received',
-      relatedPerson: 'Rahul',
-      transactionDate: now.toISOString(),
-      status: 'completed',
-      createdAt: now.toISOString()
-    });
-
-    // Seed Trip
-    this.trips.set('trip-1', {
-      id: 'trip-1',
-      userId: demoUserId,
-      name: 'Mumbai Visit',
-      destination: 'Mumbai, Maharashtra',
-      startDate: '2026-11-12',
-      endDate: '2026-11-15',
-      description: 'Business Trip & Client Meetings',
-      status: 'active',
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString()
-    });
-
-    // Seed Travel Expense linked to trip-1
-    this.transactions.set('tx-3', {
-      id: 'tx-3',
-      userId: demoUserId,
-      accountId: 'acc-bank',
-      type: 'expense',
-      amountMinor: 150000, // ₹1,500
-      currencyCode: 'INR',
-      categoryId: 'cat-travel',
-      description: 'Train Ticket to Mumbai',
-      transactionDate: now.toISOString(),
-      status: 'completed',
-      expenseGroup: 'TRAVEL',
-      tripId: 'trip-1',
-      createdAt: now.toISOString()
-    });
-
-    // Seed Special Expense
-    this.transactions.set('tx-4', {
-      id: 'tx-4',
-      userId: demoUserId,
-      accountId: 'acc-upi',
-      type: 'expense',
-      amountMinor: 250000, // ₹2,500
-      currencyCode: 'INR',
-      categoryId: 'cat-bills',
-      description: 'Emergency Phone Screen Repair',
-      transactionDate: now.toISOString(),
-      status: 'completed',
-      expenseGroup: 'SPECIAL',
-      isImportant: true,
-      createdAt: now.toISOString()
+  updatePresence(userId: string, clientPlatform: string = 'android') {
+    const nowIso = new Date().toISOString();
+    this.userPresence.set(userId, {
+      userId,
+      lastSeenAt: nowIso,
+      lastHeartbeatAt: nowIso,
+      clientPlatform,
+      updatedAt: nowIso
     });
   }
 }

@@ -4,13 +4,52 @@ import { store } from '../repositories/store';
 
 export const adminRouter = Router();
 
+const ONLINE_HEARTBEAT_WINDOW_MS = 120 * 1000; // 120 seconds
+
 // 1. Overview metrics
 adminRouter.get('/overview', authenticateAdmin, (req, res) => {
   const users = Array.from(store.profiles.values());
+  const now = Date.now();
+
   const verifiedCount = users.filter(u => u.accountStatus === 'verified').length;
   const unverifiedCount = users.filter(u => u.accountStatus === 'unverified').length;
   const suspendedCount = users.filter(u => u.accountStatus === 'suspended').length;
   const reviewCount = users.filter(u => u.accountStatus === 'requires_review').length;
+
+  // Calculate Online Users (Heartbeat within last 120 seconds)
+  let onlineCount = 0;
+  users.forEach(u => {
+    const presence = store.userPresence.get(u.id);
+    if (presence && presence.lastHeartbeatAt) {
+      const diff = now - new Date(presence.lastHeartbeatAt).getTime();
+      if (diff >= 0 && diff <= ONLINE_HEARTBEAT_WINDOW_MS) {
+        onlineCount++;
+      }
+    }
+  });
+
+  const offlineCount = Math.max(0, users.length - onlineCount);
+
+  // Calculate DAU and WAU from activityEvents
+  const oneDayAgo = now - 24 * 60 * 60 * 1000;
+  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+  const dauSet = new Set<string>();
+  const wauSet = new Set<string>();
+
+  store.activityEvents.forEach(evt => {
+    const evtTime = new Date(evt.occurredAt).getTime();
+    if (evtTime >= oneDayAgo) {
+      dauSet.add(evt.userId);
+    }
+    if (evtTime >= sevenDaysAgo) {
+      wauSet.add(evt.userId);
+    }
+  });
+
+  const backups = Array.from(store.backupRecords.values());
+  const totalBackupsCompleted = backups.filter(b => b.status === 'completed').length;
+  const totalBackupsFailed = backups.filter(b => b.status === 'failed').length;
 
   res.status(200).json({
     success: true,
@@ -20,6 +59,12 @@ adminRouter.get('/overview', authenticateAdmin, (req, res) => {
       unverifiedUsers: unverifiedCount,
       suspendedUsers: suspendedCount,
       requiresReviewUsers: reviewCount,
+      onlineUsers: onlineCount,
+      offlineUsers: offlineCount,
+      dailyActiveUsers: dauSet.size,
+      weeklyActiveUsers: wauSet.size,
+      totalBackupsCompleted,
+      totalBackupsFailed,
       totalTransactionsRecorded: store.transactions.size,
       totalConnectedDevices: store.deviceTokens.size,
       syncFailuresCount: 0,
@@ -30,16 +75,84 @@ adminRouter.get('/overview', authenticateAdmin, (req, res) => {
   });
 });
 
-// 2. User list
+// 2. User list with presence and backup status (Financial Privacy Wall Enforced)
 adminRouter.get('/users', authenticateAdmin, (req, res) => {
   const users = Array.from(store.profiles.values());
-  res.status(200).json({ success: true, data: users });
+  const now = Date.now();
+
+  const userItems = users.map(user => {
+    const presence = store.userPresence.get(user.id);
+    let isOnline = false;
+    let lastHeartbeatAt: string | null = null;
+    let lastSeenAt: string | null = null;
+
+    if (presence) {
+      lastSeenAt = presence.lastSeenAt;
+      lastHeartbeatAt = presence.lastHeartbeatAt;
+      const diff = now - new Date(presence.lastHeartbeatAt).getTime();
+      if (diff >= 0 && diff <= ONLINE_HEARTBEAT_WINDOW_MS) {
+        isOnline = true;
+      }
+    }
+
+    // User's latest backup
+    const userBackups = Array.from(store.backupRecords.values())
+      .filter(b => b.userId === user.id)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const latestBackup = userBackups[0] || null;
+
+    // Notice: Strictly ZERO balances, ZERO amounts, ZERO account numbers
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      accountStatus: user.accountStatus,
+      isOnline,
+      lastSeenAt: lastSeenAt || user.lastLoginAt || null,
+      lastHeartbeatAt,
+      latestBackupAt: latestBackup ? latestBackup.completedAt || latestBackup.createdAt : null,
+      backupStatus: latestBackup ? latestBackup.status : 'none',
+      createdAt: user.createdAt
+    };
+  });
+
+  res.status(200).json({ success: true, data: userItems });
 });
 
-// 3. User status modification
+// 3. User operational activity timeline (Financial Privacy Wall Enforced)
+adminRouter.get('/users/:id/activity', authenticateAdmin, (req, res) => {
+  const userId = req.params.id as string;
+  const user = store.profiles.get(userId);
+
+  if (!user) {
+    res.status(404).json({ success: false, error: { message: 'User not found' } });
+    return;
+  }
+
+  // Filter events for this user and strip any sensitive metadata
+  const events = store.activityEvents
+    .filter(evt => evt.userId === userId)
+    .map(evt => ({
+      id: evt.id,
+      eventType: evt.eventType,
+      occurredAt: evt.occurredAt,
+      result: evt.result,
+      metadata: evt.metadata ? { ...evt.metadata, amount: undefined, balance: undefined, memo: undefined } : {}
+    }));
+
+  res.status(200).json({ success: true, data: events });
+});
+
+// 4. User status modification
 adminRouter.patch('/users/:id/status', authenticateAdmin, (req, res) => {
   const id = req.params.id as string;
   const { status } = req.body;
+
+  const validStatuses = ['verified', 'unverified', 'suspended', 'requires_review'];
+  if (!validStatuses.includes(status)) {
+    res.status(400).json({ success: false, error: { message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` } });
+    return;
+  }
 
   const profile = store.profiles.get(id);
   if (!profile) {
@@ -65,7 +178,7 @@ adminRouter.patch('/users/:id/status', authenticateAdmin, (req, res) => {
   res.status(200).json({ success: true, data: profile });
 });
 
-// 4. Audit logs
+// 5. Audit logs
 adminRouter.get('/audit-logs', authenticateAdmin, (req, res) => {
   res.status(200).json({ success: true, data: store.auditLogs });
 });

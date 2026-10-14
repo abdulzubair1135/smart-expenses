@@ -42,11 +42,25 @@ import java.util.Locale;
 import java.util.UUID;
 
 
+import android.os.Handler;
+import android.os.Looper;
+import com.smarttracker.data.remote.BackendApiClient;
+
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
     private TransactionRepository repository;
     private SessionManager sessionManager;
+    private final Handler heartbeatHandler = new Handler(Looper.getMainLooper());
+    private final Runnable heartbeatRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (sessionManager != null && sessionManager.isLoggedIn()) {
+                BackendApiClient.getInstance(MainActivity.this).sendHeartbeat(null);
+            }
+            heartbeatHandler.postDelayed(this, 60000); // 60 seconds interval
+        }
+    };
 
     private HomeFragment homeFragment;
     private ActivityFragment activityFragment;
@@ -94,7 +108,16 @@ public class MainActivity extends AppCompatActivity {
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
             finish();
+            return;
         }
+        heartbeatHandler.removeCallbacks(heartbeatRunnable);
+        heartbeatHandler.post(heartbeatRunnable);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        heartbeatHandler.removeCallbacks(heartbeatRunnable);
     }
 
     private void setupNavClickListeners() {

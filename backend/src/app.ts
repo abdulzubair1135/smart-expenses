@@ -14,6 +14,8 @@ import { adminRouter } from './routes/admin';
 import { voiceRouter } from './routes/voice';
 import { tripsRouter } from './routes/trips';
 import { expensesRouter } from './routes/expenses';
+import { presenceRouter } from './routes/presence';
+import { backupsRouter } from './routes/backups';
 
 export function createApp(): Application {
   const app = express();
@@ -37,6 +39,8 @@ export function createApp(): Application {
   app.use('/api/v1/voice', voiceRouter);
   app.use('/api/v1/trips', tripsRouter);
   app.use('/api/v1/expenses', expensesRouter);
+  app.use('/api/v1/presence', presenceRouter);
+  app.use('/api/v1/backups', backupsRouter);
 
   // Central error handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {

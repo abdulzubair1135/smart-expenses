@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { store } from '../repositories/store';
 
 export const healthRouter = Router();
 
-healthRouter.get('/', (req, res) => {
+healthRouter.get('/', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -12,7 +12,8 @@ healthRouter.get('/', (req, res) => {
   });
 });
 
-healthRouter.get('/ready', (req, res) => {
+healthRouter.get('/ready', (req: Request, res: Response) => {
+
   // Check repository readiness
   const isReady = store.profiles.size > 0;
   if (isReady) {

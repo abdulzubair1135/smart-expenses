@@ -1,10 +1,11 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
 import { store } from '../repositories/store';
 
 export const insightsRouter = Router();
 
-insightsRouter.get('/summary', authenticateUser, (req: AuthenticatedRequest, res) => {
+insightsRouter.get('/summary', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+
   const userId = req.user!.id;
   const userTxs = Array.from(store.transactions.values()).filter(t => t.userId === userId && t.status === 'completed');
 

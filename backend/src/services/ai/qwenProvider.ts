@@ -162,9 +162,9 @@ Output JSON schema:
           },
           timeout: this.timeoutMs
         },
-        (res) => {
+        (res: any) => {
           let data = '';
-          res.on('data', (chunk) => (data += chunk));
+          res.on('data', (chunk: any) => (data += chunk));
           res.on('end', () => {
             try {
               const parsedRes = JSON.parse(data);
@@ -182,7 +182,8 @@ Output JSON schema:
         }
       );
 
-      req.on('error', (err) => {
+      req.on('error', (err: any) => {
+
         if (config.nodeEnv !== 'production') {
           console.log(`[AI-DIAGNOSTIC] [${correlationId}] Ollama network error: ${err.message}`);
         }

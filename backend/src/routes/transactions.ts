@@ -1,11 +1,12 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
 import { store, Transaction } from '../repositories/store';
 
 export const transactionsRouter = Router();
 
 // GET transactions with search, filter by type/category/account
-transactionsRouter.get('/', authenticateUser, (req: AuthenticatedRequest, res) => {
+transactionsRouter.get('/', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+
   const userId = req.user!.id;
   const { type, accountId, categoryId, search } = req.query;
 
@@ -32,7 +33,8 @@ transactionsRouter.get('/', authenticateUser, (req: AuthenticatedRequest, res) =
 });
 
 // POST create transaction
-transactionsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res) => {
+transactionsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+
   const userId = req.user!.id;
   const {
     accountId,
@@ -83,7 +85,8 @@ transactionsRouter.post('/', authenticateUser, (req: AuthenticatedRequest, res) 
 });
 
 // DELETE transaction
-transactionsRouter.delete('/:id', authenticateUser, (req: AuthenticatedRequest, res) => {
+transactionsRouter.delete('/:id', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+
   const userId = req.user!.id;
   const id = req.params.id as string;
 

@@ -1,11 +1,12 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
 import { store } from '../repositories/store';
 import { calculateUserTotalBalance } from '../services/balance';
 
 export const dashboardRouter = Router();
 
-dashboardRouter.get('/summary', authenticateUser, (req: AuthenticatedRequest, res) => {
+dashboardRouter.get('/summary', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+
   const userId = req.user!.id;
   const userAccounts = Array.from(store.accounts.values()).filter(a => a.userId === userId);
   const userTxs = Array.from(store.transactions.values()).filter(t => t.userId === userId);

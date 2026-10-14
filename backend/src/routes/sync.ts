@@ -1,11 +1,12 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
 import { store, Transaction } from '../repositories/store';
 
 export const syncRouter = Router();
 
 // PUSH local offline operations into cloud
-syncRouter.post('/push', authenticateUser, (req: AuthenticatedRequest, res) => {
+syncRouter.post('/push', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+
   const userId = req.user!.id;
   const { operations } = req.body; // array of { action: 'insert'|'update'|'delete', data: Transaction }
 
@@ -65,7 +66,8 @@ syncRouter.post('/push', authenticateUser, (req: AuthenticatedRequest, res) => {
 });
 
 // PULL latest changes since timestamp
-syncRouter.get('/pull', authenticateUser, (req: AuthenticatedRequest, res) => {
+syncRouter.get('/pull', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+
   const userId = req.user!.id;
   const since = req.query.since as string;
 

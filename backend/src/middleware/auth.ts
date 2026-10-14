@@ -8,7 +8,12 @@ export interface AuthenticatedUser {
 
 export interface AuthenticatedRequest extends Request {
   user?: AuthenticatedUser;
+  body: any;
+  query: any;
+  params: any;
+  headers: any;
 }
+
 
 export const authenticateUser = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;

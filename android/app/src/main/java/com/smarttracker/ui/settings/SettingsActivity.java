@@ -16,6 +16,14 @@ import com.smarttracker.databinding.ActivitySettingsBinding;
 import com.smarttracker.ui.auth.LoginActivity;
 import com.smarttracker.ui.legal.PrivacyPolicyActivity;
 import com.smarttracker.ui.legal.TermsActivity;
+import android.content.pm.ApplicationInfo;
+import android.net.Uri;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import com.smarttracker.ui.voice.SpeechRecognitionManager;
 import com.smarttracker.ui.voice.TextToSpeechManager;
 import com.smarttracker.ui.voice.VoiceAssistantBottomSheetDialog;
@@ -46,7 +54,61 @@ public class SettingsActivity extends AppCompatActivity {
             startActivity(new Intent(SettingsActivity.this, PrivacyPolicyActivity.class));
         });
 
+        binding.btnShareApk.setOnClickListener(v -> shareApkFile());
+
         binding.btnLogout.setOnClickListener(v -> showLogoutConfirmation());
+    }
+
+    private void shareApkFile() {
+        Toast.makeText(this, "Preparing APK to share...", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                ApplicationInfo appInfo = getApplicationContext().getApplicationInfo();
+                File sourceApk = new File(appInfo.sourceDir);
+
+                if (!sourceApk.exists()) {
+                    runOnUiThread(() -> Toast.makeText(this, "APK source not found", Toast.LENGTH_SHORT).show());
+                    return;
+                }
+
+                File cacheDir = new File(getCacheDir(), "apk");
+                if (!cacheDir.exists()) {
+                    cacheDir.mkdirs();
+                }
+
+                File destApk = new File(cacheDir, "SmartExpenses.apk");
+
+                try (InputStream in = new FileInputStream(sourceApk);
+                     OutputStream out = new FileOutputStream(destApk)) {
+                    byte[] buffer = new byte[16384];
+                    int bytesRead;
+                    while ((bytesRead = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, bytesRead);
+                    }
+                    out.flush();
+                }
+
+                Uri apkUri = FileProvider.getUriForFile(
+                        this,
+                        getPackageName() + ".provider",
+                        destApk
+                );
+
+                runOnUiThread(() -> {
+                    Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                    shareIntent.setType("application/vnd.android.package-archive");
+                    shareIntent.putExtra(Intent.EXTRA_STREAM, apkUri);
+                    shareIntent.putExtra(Intent.EXTRA_SUBJECT, "Smart Expenses Tracker APK");
+                    shareIntent.putExtra(Intent.EXTRA_TEXT, "Here is the Smart Expenses Tracker App! Install and track expenses offline with AI Voice Assistant.");
+                    shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+                    startActivity(Intent.createChooser(shareIntent, "Share APK via"));
+                });
+
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, "Failed to share APK: " + e.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        }).start();
     }
 
     private void setupProfileHeader() {

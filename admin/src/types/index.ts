@@ -49,3 +49,72 @@ export interface AuditLog {
   ipAddress: string;
   createdAt: string;
 }
+
+export interface MonitoringSummary {
+  totalEvents: number;
+  newEvents: number;
+  criticalEvents: number;
+  errorEvents: number;
+  warningEvents: number;
+  resolvedEvents: number;
+  eventsToday: number;
+  syncFailuresCount: number;
+  lastIngestedAt: string | null;
+}
+
+export interface MonitoringEvent {
+  id: string;
+  eventType: string;
+  severity: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
+  source: 'ANDROID' | 'BACKEND' | 'DATABASE' | 'SYNC' | 'ADMIN';
+  errorCode: string;
+  message: string;
+  stackTrace?: string;
+  screenName?: string;
+  operationName?: string;
+  appVersion: string;
+  appBuild: string;
+  androidVersion?: string;
+  deviceModel?: string;
+  environment: string;
+  userId?: string | null;
+  installationId: string;
+  correlationId: string;
+  occurredAt: string;
+  receivedAt: string;
+  status: 'NEW' | 'ACKNOWLEDGED' | 'RESOLVED' | 'IGNORED';
+  occurrenceCount: number;
+  metadataJson: Record<string, any>;
+}
+
+export interface MonitoringHistory {
+  id: string;
+  eventId: string;
+  oldStatus: string;
+  newStatus: string;
+  changedBy: string;
+  reason?: string;
+  changedAt: string;
+}
+
+export interface ServiceHealth {
+  renderApi: {
+    status: string;
+    uptimeSeconds: number;
+    nodeVersion: string;
+  };
+  databaseConnectivity: string;
+  monitoringIngestion: {
+    status: string;
+    eventsQueuedLocally: number;
+    lastIngestedAt: string | null;
+  };
+  authentication: {
+    status: string;
+    mode: string;
+  };
+  backgroundSync: {
+    status: string;
+    syncFailuresCount: number;
+  };
+}

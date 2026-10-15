@@ -112,6 +112,8 @@ public class MainActivity extends AppCompatActivity {
         }
         heartbeatHandler.removeCallbacks(heartbeatRunnable);
         heartbeatHandler.post(heartbeatRunnable);
+        // Automatic Safe Account Data Synchronization on app return
+        com.smarttracker.core.sync.SyncManager.getInstance(this).triggerSync();
     }
 
     @Override
@@ -327,6 +329,7 @@ public class MainActivity extends AppCompatActivity {
             );
 
             repository.insertTransaction(tx);
+            com.smarttracker.core.sync.SyncManager.getInstance(this).triggerSync();
             formDialog.dismiss();
             Toast.makeText(this, type.toUpperCase() + " of " + FinancialEngine.formatMinorToSimpleINR(minorUnits) + " saved offline!", Toast.LENGTH_SHORT).show();
             if (homeFragment != null && homeFragment.isAdded()) {

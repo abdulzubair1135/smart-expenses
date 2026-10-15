@@ -1,6 +1,7 @@
 package com.smarttracker.app;
 
 import android.app.Application;
+import com.smarttracker.core.monitoring.MonitoringManager;
 import com.smarttracker.data.local.AppDatabase;
 
 public class SmartExpensesApp extends Application {
@@ -10,5 +11,7 @@ public class SmartExpensesApp extends Application {
         super.onCreate();
         // Warm up Room Database
         AppDatabase.getDatabase(this);
+        // Initialize Global Error Telemetry and Crash Monitoring
+        MonitoringManager.init(this);
     }
 }

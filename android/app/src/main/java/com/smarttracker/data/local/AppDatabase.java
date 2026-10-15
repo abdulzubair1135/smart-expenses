@@ -27,14 +27,18 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.smarttracker.data.local.dao.MonitoringEventDao;
+import com.smarttracker.data.local.entity.MonitoringEventEntity;
+
 @Database(entities = {
         TransactionEntity.class,
         AccountEntity.class,
         CategoryEntity.class,
         SavingGoalEntity.class,
         UpcomingExpenseEntity.class,
-        TripEntity.class
-}, version = 2, exportSchema = false)
+        TripEntity.class,
+        MonitoringEventEntity.class
+}, version = 3, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     public abstract TransactionDao transactionDao();
@@ -43,6 +47,7 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract SavingGoalDao savingGoalDao();
     public abstract UpcomingExpenseDao upcomingExpenseDao();
     public abstract TripDao tripDao();
+    public abstract MonitoringEventDao monitoringEventDao();
 
     private static volatile AppDatabase INSTANCE;
     public static final ExecutorService databaseWriteExecutor = Executors.newFixedThreadPool(4);
@@ -69,13 +74,40 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    public static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("CREATE TABLE IF NOT EXISTS monitoring_events (" +
+                    "id TEXT PRIMARY KEY NOT NULL, " +
+                    "eventType TEXT NOT NULL, " +
+                    "severity TEXT NOT NULL, " +
+                    "source TEXT NOT NULL, " +
+                    "errorCode TEXT NOT NULL, " +
+                    "message TEXT NOT NULL, " +
+                    "stackTrace TEXT, " +
+                    "screenName TEXT, " +
+                    "operationName TEXT, " +
+                    "appVersion TEXT NOT NULL, " +
+                    "appBuild TEXT NOT NULL, " +
+                    "androidVersion TEXT, " +
+                    "deviceModel TEXT, " +
+                    "userId TEXT, " +
+                    "installationId TEXT NOT NULL, " +
+                    "correlationId TEXT NOT NULL, " +
+                    "occurredAt INTEGER NOT NULL, " +
+                    "syncStatus TEXT NOT NULL, " +
+                    "retryCount INTEGER NOT NULL DEFAULT 0, " +
+                    "metadataJson TEXT)");
+        }
+    };
+
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCE == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "smart_expenses.db")
-                            .addMigrations(MIGRATION_1_2)
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                             .fallbackToDestructiveMigration()
                             .addCallback(sRoomDatabaseCallback)
                             .build();

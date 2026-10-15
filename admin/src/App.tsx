@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from './services/api';
-import { AdminMetrics, UserProfile, AuditLog, ActivityEvent } from './types';
+import { 
+  AdminMetrics, UserProfile, AuditLog, ActivityEvent, 
+  MonitoringSummary, MonitoringEvent, MonitoringHistory, ServiceHealth 
+} from './types';
 import { 
   Users, Activity, ShieldCheck, Database, CheckCircle, 
   AlertTriangle, RefreshCw, LogOut, Search, Cpu,
-  HardDrive, Clock, Lock, X
+  Lock, X, Filter, Eye, Server, Radio
 } from 'lucide-react';
 
 export default function App() {
@@ -14,11 +17,26 @@ export default function App() {
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'health' | 'audit'>('overview');
+  const [monitoringSummary, setMonitoringSummary] = useState<MonitoringSummary | null>(null);
+  const [monitoringEvents, setMonitoringEvents] = useState<MonitoringEvent[]>([]);
+  const [serviceHealth, setServiceHealth] = useState<ServiceHealth | null>(null);
+  
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'monitoring' | 'health' | 'audit'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [loginInput, setLoginInput] = useState('smart-expenses-admin-secret-2026');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Monitoring Filters
+  const [filterSeverity, setFilterSeverity] = useState<string>('');
+  const [filterSource, setFilterSource] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterSearch, setFilterSearch] = useState<string>('');
+
+  // Event Detail Modal State
+  const [selectedEvent, setSelectedEvent] = useState<MonitoringEvent | null>(null);
+  const [eventHistory, setEventHistory] = useState<MonitoringHistory[]>([]);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   // User activity modal state
   const [selectedUserForActivity, setSelectedUserForActivity] = useState<UserProfile | null>(null);
@@ -29,14 +47,21 @@ export default function App() {
     try {
       setLoading(true);
       setErrorMsg('');
-      const [m, u, a] = await Promise.all([
+      const [m, u, a, ms, me, sh] = await Promise.all([
         adminApi.getOverview(key),
         adminApi.getUsers(key),
-        adminApi.getAuditLogs(key)
+        adminApi.getAuditLogs(key),
+        adminApi.getMonitoringSummary(key).catch(() => null),
+        adminApi.getMonitoringEvents(key, { limit: '50' }).catch(() => ({ events: [], pagination: {} })),
+        adminApi.getMonitoringHealth(key).catch(() => null)
       ]);
       setMetrics(m);
       setUsers(u);
       setAuditLogs(a);
+      if (ms) setMonitoringSummary(ms);
+      if (me && me.events) setMonitoringEvents(me.events);
+      if (sh) setServiceHealth(sh);
+
       setIsAuthenticated(true);
       localStorage.setItem('adminKey', key);
     } catch (err: any) {
@@ -47,11 +72,37 @@ export default function App() {
     }
   };
 
+  const reloadMonitoringEvents = async () => {
+    if (!adminKey) return;
+    try {
+      const params: Record<string, string> = { limit: '50' };
+      if (filterSeverity) params.severity = filterSeverity;
+      if (filterSource) params.source = filterSource;
+      if (filterStatus) params.status = filterStatus;
+      if (filterSearch) params.search = filterSearch;
+
+      const [ms, me] = await Promise.all([
+        adminApi.getMonitoringSummary(adminKey),
+        adminApi.getMonitoringEvents(adminKey, params)
+      ]);
+      setMonitoringSummary(ms);
+      setMonitoringEvents(me.events || []);
+    } catch (e: any) {
+      console.error('Failed to reload monitoring events:', e);
+    }
+  };
+
   useEffect(() => {
     if (adminKey) {
       loadData(adminKey);
     }
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'monitoring') {
+      reloadMonitoringEvents();
+    }
+  }, [filterSeverity, filterSource, filterStatus, filterSearch, activeTab]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +139,32 @@ export default function App() {
     }
   };
 
+  const handleInspectEvent = async (event: MonitoringEvent) => {
+    setSelectedEvent(event);
+    try {
+      const details = await adminApi.getMonitoringEventById(adminKey, event.id);
+      setSelectedEvent(details.event);
+      setEventHistory(details.history || []);
+    } catch (e: any) {
+      console.warn('Could not load event history details:', e);
+    }
+  };
+
+  const handleUpdateEventStatus = async (eventId: string, newStatus: string, reason?: string) => {
+    try {
+      setUpdatingStatus(true);
+      await adminApi.updateMonitoringEventStatus(adminKey, eventId, newStatus, reason);
+      await reloadMonitoringEvents();
+      if (selectedEvent && selectedEvent.id === eventId) {
+        setSelectedEvent({ ...selectedEvent, status: newStatus as any });
+      }
+    } catch (e: any) {
+      alert('Failed to update event status: ' + e.message);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
@@ -119,7 +196,6 @@ export default function App() {
                 placeholder="https://smart-expenses-8pf3.onrender.com/api/v1/admin"
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs"
               />
-              <span className="text-[10px] text-gray-400">Default: Live Render Production Server</span>
             </div>
 
             <div>
@@ -130,81 +206,100 @@ export default function App() {
                 type="password"
                 value={loginInput}
                 onChange={(e) => setLoginInput(e.target.value)}
-                placeholder="Enter admin secret key"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm"
+                placeholder="Enter secret key..."
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-mono"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition shadow-md flex items-center justify-center gap-2"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2"
             >
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Authenticate Admin'}
+              {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
+              Connect Dashboard
             </button>
           </form>
-
-          <p className="text-xs text-center text-gray-400">
-            Protected endpoint with server-verified credentials & zero-knowledge financial privacy wall.
-          </p>
         </div>
       </div>
     );
   }
 
-  const filteredUsers = users.filter(u => 
-    u.email.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    u.displayName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUsers = users.filter((u) => 
+    u.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white flex flex-col">
-        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center font-bold text-white shadow-md">
-            SE
+      {/* Sidebar Navigation */}
+      <aside className="w-64 bg-slate-900 text-white flex flex-col justify-between flex-shrink-0">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-bold">
+              SE
+            </div>
+            <div>
+              <h2 className="font-bold text-sm tracking-wide">SMART EXPENSES</h2>
+              <span className="text-[10px] text-emerald-400 font-mono">ADMIN CONSOLE</span>
+            </div>
           </div>
-          <div>
-            <h2 className="font-semibold text-sm">Smart Expenses</h2>
-            <span className="text-xs text-emerald-400">Admin Panel</span>
-          </div>
-        </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
-              activeTab === 'overview' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:bg-slate-800'
-            }`}
-          >
-            <Activity className="w-4 h-4" /> System Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
-              activeTab === 'users' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:bg-slate-800'
-            }`}
-          >
-            <Users className="w-4 h-4" /> User Management
-          </button>
-          <button
-            onClick={() => setActiveTab('health')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
-              activeTab === 'health' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:bg-slate-800'
-            }`}
-          >
-            <Cpu className="w-4 h-4" /> Server Health
-          </button>
-          <button
-            onClick={() => setActiveTab('audit')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
-              activeTab === 'audit' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:bg-slate-800'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" /> Security Audit Logs
-          </button>
-        </nav>
+          <nav className="space-y-1">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
+                activeTab === 'overview' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800'
+              }`}
+            >
+              <Activity className="w-4 h-4" /> Overview & Analytics
+            </button>
+
+            <button
+              onClick={() => setActiveTab('monitoring')}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition ${
+                activeTab === 'monitoring' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-4 h-4 text-amber-400" /> Global Monitoring
+              </div>
+              {monitoringSummary && monitoringSummary.newEvents > 0 && (
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-500 text-white rounded-full">
+                  {monitoringSummary.newEvents}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
+                activeTab === 'users' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800'
+              }`}
+            >
+              <Users className="w-4 h-4" /> User Presence
+            </button>
+
+            <button
+              onClick={() => setActiveTab('health')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
+                activeTab === 'health' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800'
+              }`}
+            >
+              <Cpu className="w-4 h-4" /> Service Health
+            </button>
+
+            <button
+              onClick={() => setActiveTab('audit')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
+                activeTab === 'audit' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" /> Audit Logs
+            </button>
+          </nav>
+        </div>
 
         <div className="p-4 border-t border-slate-800 space-y-2">
           <div className="px-3 py-1.5 bg-slate-800 rounded-lg text-[11px] font-mono text-slate-400 truncate">
@@ -225,11 +320,12 @@ export default function App() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 capitalize">
               {activeTab === 'overview' && 'System Overview & Analytics'}
-              {activeTab === 'users' && 'User Account & Presence Monitoring'}
-              {activeTab === 'health' && 'Infrastructure & API Health'}
-              {activeTab === 'audit' && 'Security & Administration Audit Trail'}
+              {activeTab === 'monitoring' && 'Global Error Telemetry & Ingestion Queue'}
+              {activeTab === 'users' && 'User Accounts & Presence Monitoring'}
+              {activeTab === 'health' && 'Component-Level Service Health'}
+              {activeTab === 'audit' && 'Security Administration Audit Trail'}
             </h1>
-            <p className="text-sm text-gray-500">Live operational telemetry & zero-knowledge privacy enforcement</p>
+            <p className="text-sm text-gray-500">Live operational telemetry & zero-knowledge financial privacy enforcement</p>
           </div>
           <button
             onClick={() => loadData(adminKey)}
@@ -239,14 +335,193 @@ export default function App() {
           </button>
         </header>
 
-        {/* TAB 1: OVERVIEW */}
+        {/* TAB: GLOBAL MONITORING */}
+        {activeTab === 'monitoring' && (
+          <div className="space-y-6">
+            {/* KPI Cards */}
+            {monitoringSummary && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                  <span className="text-xs font-semibold uppercase text-gray-400">Total Telemetry Events</span>
+                  <div className="text-3xl font-bold text-gray-900 mt-2">{monitoringSummary.totalEvents}</div>
+                  <div className="text-xs text-gray-500 mt-1">{monitoringSummary.eventsToday} logged today</div>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-red-200 shadow-sm bg-red-50/20">
+                  <span className="text-xs font-semibold uppercase text-red-500">Critical & Errors</span>
+                  <div className="text-3xl font-bold text-red-600 mt-2">
+                    {monitoringSummary.criticalEvents + monitoringSummary.errorEvents}
+                  </div>
+                  <div className="text-xs text-red-500 mt-1">{monitoringSummary.criticalEvents} Critical / {monitoringSummary.errorEvents} Errors</div>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm bg-amber-50/20">
+                  <span className="text-xs font-semibold uppercase text-amber-500">Warnings & Sync Issues</span>
+                  <div className="text-3xl font-bold text-amber-600 mt-2">
+                    {monitoringSummary.warningEvents}
+                  </div>
+                  <div className="text-xs text-amber-600 mt-1">{monitoringSummary.syncFailuresCount} Sync failures recorded</div>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-sm bg-emerald-50/20">
+                  <span className="text-xs font-semibold uppercase text-emerald-600">Resolved / Triage</span>
+                  <div className="text-3xl font-bold text-emerald-600 mt-2">{monitoringSummary.resolvedEvents}</div>
+                  <div className="text-xs text-emerald-600 mt-1">{monitoringSummary.newEvents} Pending acknowledgment</div>
+                </div>
+              </div>
+            )}
+
+            {/* Filter Bar */}
+            <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                  <Filter className="w-3.5 h-3.5" /> Filters:
+                </div>
+
+                <select
+                  value={filterSeverity}
+                  onChange={(e) => setFilterSeverity(e.target.value)}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                >
+                  <option value="">All Severities</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                  <option value="ERROR">ERROR</option>
+                  <option value="WARNING">WARNING</option>
+                  <option value="INFO">INFO</option>
+                </select>
+
+                <select
+                  value={filterSource}
+                  onChange={(e) => setFilterSource(e.target.value)}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                >
+                  <option value="">All Sources</option>
+                  <option value="ANDROID">ANDROID</option>
+                  <option value="BACKEND">BACKEND</option>
+                  <option value="SYNC">SYNC</option>
+                  <option value="DATABASE">DATABASE</option>
+                  <option value="ADMIN">ADMIN</option>
+                </select>
+
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="NEW">NEW</option>
+                  <option value="ACKNOWLEDGED">ACKNOWLEDGED</option>
+                  <option value="RESOLVED">RESOLVED</option>
+                  <option value="IGNORED">IGNORED</option>
+                </select>
+              </div>
+
+              <div className="relative w-72">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search error code or message..."
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Events Feed Table */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase text-gray-500">Live Ingested Telemetry Feed</span>
+                <span className="text-xs text-gray-400">Showing {monitoringEvents.length} events</span>
+              </div>
+
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-gray-600 text-xs uppercase font-semibold">
+                  <tr>
+                    <th className="p-4">Time</th>
+                    <th className="p-4">Severity</th>
+                    <th className="p-4">Source</th>
+                    <th className="p-4">Code & Message</th>
+                    <th className="p-4">App / Target</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {monitoringEvents.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-gray-400 text-xs">
+                        No telemetry events matching the current filter criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    monitoringEvents.map((ev) => (
+                      <tr key={ev.id} className="hover:bg-gray-50/50">
+                        <td className="p-4 whitespace-nowrap text-xs text-gray-500">
+                          {new Date(ev.occurredAt).toLocaleString()}
+                        </td>
+
+                        <td className="p-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            ev.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                            ev.severity === 'ERROR' ? 'bg-rose-100 text-rose-700' :
+                            ev.severity === 'WARNING' ? 'bg-amber-100 text-amber-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {ev.severity}
+                          </span>
+                        </td>
+
+                        <td className="p-4 whitespace-nowrap font-mono text-xs text-gray-600">
+                          {ev.source}
+                        </td>
+
+                        <td className="p-4 max-w-xs">
+                          <div className="font-mono text-xs font-semibold text-gray-900">{ev.errorCode}</div>
+                          <div className="text-xs text-gray-500 truncate" title={ev.message}>{ev.message}</div>
+                        </td>
+
+                        <td className="p-4 whitespace-nowrap text-xs text-gray-500">
+                          <div>v{ev.appVersion} (b{ev.appBuild})</div>
+                          <div className="text-[10px] text-gray-400">{ev.screenName || ev.operationName || 'System'}</div>
+                        </td>
+
+                        <td className="p-4 whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase ${
+                            ev.status === 'NEW' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                            ev.status === 'ACKNOWLEDGED' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                            ev.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>
+                            {ev.status}
+                          </span>
+                        </td>
+
+                        <td className="p-4 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => handleInspectEvent(ev)}
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ml-auto"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> Inspect
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: SYSTEM OVERVIEW */}
         {activeTab === 'overview' && metrics && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
                 <span className="text-xs font-semibold uppercase text-gray-400">Total Registered</span>
                 <div className="text-3xl font-bold text-gray-900 mt-2">{metrics.totalRegisteredUsers}</div>
-                <div className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                <div className="text-xs text-emerald-600 flex items-center gap-1 mt-1 font-medium">
                   <CheckCircle className="w-3 h-3" /> {metrics.verifiedUsers} Verified Accounts
                 </div>
               </div>
@@ -267,9 +542,11 @@ export default function App() {
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                <span className="text-xs font-semibold uppercase text-gray-400">Verified Backups</span>
-                <div className="text-3xl font-bold text-emerald-600 mt-2">{metrics.totalBackupsCompleted}</div>
-                <div className="text-xs text-gray-500 mt-1">Failed operations: {metrics.totalBackupsFailed}</div>
+                <span className="text-xs font-semibold uppercase text-gray-400">Database Status</span>
+                <div className="text-2xl font-bold text-emerald-600 mt-2 flex items-center gap-2">
+                  <Database className="w-6 h-6" /> {metrics.databaseConnectivity}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">Uptime: {metrics.serverUptimeSeconds}s</div>
               </div>
             </div>
 
@@ -308,7 +585,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: USERS */}
+        {/* TAB: USERS */}
         {activeTab === 'users' && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -331,7 +608,6 @@ export default function App() {
                   <th className="p-4">User</th>
                   <th className="p-4">Presence</th>
                   <th className="p-4">Account Status</th>
-                  <th className="p-4">Latest Backup</th>
                   <th className="p-4">Registered Date</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
@@ -356,54 +632,33 @@ export default function App() {
                           Offline
                         </span>
                       )}
-                      {u.lastHeartbeatAt && (
-                        <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                          <Clock className="w-2.5 h-2.5" />
-                          {new Date(u.lastHeartbeatAt).toLocaleTimeString()}
-                        </div>
-                      )}
                     </td>
                     <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase ${
-                        u.accountStatus === 'verified' ? 'bg-emerald-100 text-emerald-800' :
-                        u.accountStatus === 'suspended' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {u.accountStatus}
-                      </span>
+                      <select
+                        value={u.accountStatus}
+                        onChange={(e) => handleStatusChange(u.id, e.target.value)}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg border-0 focus:ring-2 focus:ring-emerald-500 ${
+                          u.accountStatus === 'verified' ? 'bg-emerald-100 text-emerald-800' :
+                          u.accountStatus === 'suspended' ? 'bg-red-100 text-red-800' :
+                          'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        <option value="verified">VERIFIED</option>
+                        <option value="unverified">UNVERIFIED</option>
+                        <option value="suspended">SUSPENDED</option>
+                        <option value="requires_review">REQUIRES REVIEW</option>
+                      </select>
                     </td>
-                    <td className="p-4">
-                      {u.backupStatus === 'completed' ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
-                          <HardDrive className="w-3 h-3" />
-                          {u.latestBackupAt ? new Date(u.latestBackupAt).toLocaleDateString() : 'Active'}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">No backup yet</span>
-                      )}
+                    <td className="p-4 text-xs text-gray-500">
+                      {new Date(u.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="p-4 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
-                    <td className="p-4 text-right space-x-2">
+                    <td className="p-4 text-right">
                       <button
                         onClick={() => handleViewActivity(u)}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded bg-indigo-50 hover:bg-indigo-100 transition"
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition"
                       >
-                        Activity
+                        Activity Log
                       </button>
-                      {u.accountStatus !== 'suspended' ? (
-                        <button
-                          onClick={() => handleStatusChange(u.id, 'suspended')}
-                          className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition"
-                        >
-                          Suspend
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleStatusChange(u.id, 'verified')}
-                          className="text-xs text-emerald-600 hover:text-emerald-800 font-medium px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 transition"
-                        >
-                          Reactivate
-                        </button>
-                      )}
                     </td>
                   </tr>
                 ))}
@@ -412,91 +667,226 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: SERVER HEALTH */}
+        {/* TAB: SERVICE HEALTH */}
         {activeTab === 'health' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Database className="w-5 h-5 text-emerald-600" /> Database & Persistence
-              </h3>
-              <p className="text-sm text-gray-600">
-                PostgreSQL schema configured with Row Level Security (RLS) isolation and integer minor units currency rules.
-              </p>
-              <div className="p-4 bg-gray-50 rounded-xl space-y-2 text-xs font-mono">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">RLS Policies:</span>
-                  <span className="text-emerald-700 font-semibold">Active & Enforced</span>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+                    <Server className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Render API Host</h3>
+                    <span className="text-xs text-emerald-600 font-semibold uppercase">Operational</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Connection State:</span>
-                  <span className="text-emerald-700 font-semibold">Operational</span>
+                <div className="space-y-1 text-xs text-gray-500 font-mono">
+                  <div>Endpoint: {apiEndpoint}</div>
+                  <div>Node Version: {serviceHealth?.renderApi.nodeVersion || 'v20+ (Active)'}</div>
+                  <div>Server Uptime: {metrics?.serverUptimeSeconds || 0} seconds</div>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-indigo-600" /> Node.js Express Runtime
-              </h3>
-              <p className="text-sm text-gray-600">
-                Backend modular monolith running on Node.js v24 with TypeScript, Helmet, and CORS.
-              </p>
-              <div className="p-4 bg-gray-50 rounded-xl space-y-2 text-xs font-mono">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Server Architecture:</span>
-                  <span>Express Modular Monolith</span>
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Supabase PostgreSQL</h3>
+                    <span className="text-xs text-emerald-600 font-semibold uppercase">
+                      {serviceHealth?.databaseConnectivity || metrics?.databaseConnectivity || 'Connected'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Live Endpoint:</span>
-                  <span className="text-emerald-700 truncate">{apiEndpoint}</span>
+                <div className="space-y-1 text-xs text-gray-500 font-mono">
+                  <div>Cloud Project: lbxjzfbjaxplmvdzsvzx</div>
+                  <div>Auth Schema: Public + Auth Isolation</div>
+                  <div>RLS Policies: Active on all tables</div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center font-bold">
+                    <Radio className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Telemetry Ingestion</h3>
+                    <span className="text-xs text-blue-600 font-semibold uppercase">Active Ingestion</span>
+                  </div>
+                </div>
+                <div className="space-y-1 text-xs text-gray-500 font-mono">
+                  <div>Total Ingested: {monitoringSummary?.totalEvents || 0}</div>
+                  <div>Last Ingestion: {monitoringSummary?.lastIngestedAt ? new Date(monitoringSummary.lastIngestedAt).toLocaleTimeString() : 'N/A'}</div>
+                  <div>Deduplication: Stable UUID Hashes</div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 4: AUDIT LOGS */}
+        {/* TAB: AUDIT LOGS */}
         {activeTab === 'audit' && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <span className="text-xs font-semibold uppercase text-gray-400">Immutable Audit Trail</span>
+            </div>
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-gray-600 text-xs uppercase font-semibold">
                 <tr>
                   <th className="p-4">Timestamp</th>
-                  <th className="p-4">Admin</th>
+                  <th className="p-4">Administrator</th>
                   <th className="p-4">Action</th>
-                  <th className="p-4">Target</th>
-                  <th className="p-4">Details</th>
+                  <th className="p-4">Target Resource</th>
                   <th className="p-4">IP Address</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 font-mono text-xs">
-                {auditLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-400">
-                      No administrative events logged yet. Privileged actions will appear here.
+              <tbody className="divide-y divide-gray-100">
+                {auditLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-50/50">
+                    <td className="p-4 text-xs text-gray-500 whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
+                    <td className="p-4 text-xs font-mono font-medium text-gray-700">{log.adminId}</td>
+                    <td className="p-4">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 font-mono">
+                        {log.action}
+                      </span>
                     </td>
+                    <td className="p-4 text-xs font-mono text-gray-500">{log.targetType}: {log.targetId}</td>
+                    <td className="p-4 text-xs text-gray-400 font-mono">{log.ipAddress || 'Internal'}</td>
                   </tr>
-                ) : (
-                  auditLogs.map((log) => (
-                    <tr key={log.id}>
-                      <td className="p-4 text-gray-500">{new Date(log.createdAt).toLocaleString()}</td>
-                      <td className="p-4 font-semibold text-gray-800">{log.adminId}</td>
-                      <td className="p-4 text-emerald-700 font-semibold">{log.action}</td>
-                      <td className="p-4 text-gray-700">{log.targetType}:{log.targetId}</td>
-                      <td className="p-4 text-gray-500">{JSON.stringify(log.details)}</td>
-                      <td className="p-4 text-gray-500">{log.ipAddress}</td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
         )}
 
-        {/* USER ACTIVITY MODAL (PRIVACY-WALLED) */}
+        {/* EVENT DETAIL & RESOLUTION MODAL */}
+        {selectedEvent && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div className="flex items-center gap-3">
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                    selectedEvent.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                    selectedEvent.severity === 'ERROR' ? 'bg-rose-100 text-rose-700' :
+                    selectedEvent.severity === 'WARNING' ? 'bg-amber-100 text-amber-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {selectedEvent.severity}
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 font-mono">{selectedEvent.errorCode}</h3>
+                    <p className="text-xs text-gray-500">{selectedEvent.source} • {new Date(selectedEvent.occurredAt).toLocaleString()}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="p-1 rounded-lg text-gray-400 hover:bg-gray-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Event Metadata Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 p-3 rounded-xl text-xs font-mono">
+                <div>
+                  <span className="text-[10px] uppercase text-gray-400">Event ID</span>
+                  <div className="truncate text-gray-700" title={selectedEvent.id}>{selectedEvent.id}</div>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase text-gray-400">Correlation ID</span>
+                  <div className="truncate text-gray-700" title={selectedEvent.correlationId}>{selectedEvent.correlationId}</div>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase text-gray-400">App Version</span>
+                  <div className="text-gray-700">v{selectedEvent.appVersion} (b{selectedEvent.appBuild})</div>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase text-gray-400">Device</span>
+                  <div className="text-gray-700 truncate">{selectedEvent.deviceModel || 'Unknown Device'}</div>
+                </div>
+              </div>
+
+              {/* Message */}
+              <div>
+                <label className="text-xs font-semibold uppercase text-gray-500">Sanitized Message</label>
+                <div className="mt-1 p-3 bg-slate-900 text-slate-100 rounded-xl text-xs font-mono break-words">
+                  {selectedEvent.message}
+                </div>
+              </div>
+
+              {/* Stack Trace */}
+              {selectedEvent.stackTrace && (
+                <div>
+                  <label className="text-xs font-semibold uppercase text-gray-500">Sanitized Stack Trace</label>
+                  <pre className="mt-1 p-3 bg-slate-900 text-rose-300 rounded-xl text-[11px] font-mono overflow-x-auto max-h-48">
+                    {selectedEvent.stackTrace}
+                  </pre>
+                </div>
+              )}
+
+              {/* Status Action Buttons */}
+              <div className="pt-2 border-t flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 font-medium">Change Status:</span>
+                  <button
+                    disabled={updatingStatus}
+                    onClick={() => handleUpdateEventStatus(selectedEvent.id, 'ACKNOWLEDGED')}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition"
+                  >
+                    Acknowledge
+                  </button>
+                  <button
+                    disabled={updatingStatus}
+                    onClick={() => handleUpdateEventStatus(selectedEvent.id, 'RESOLVED')}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition"
+                  >
+                    Mark Resolved
+                  </button>
+                  <button
+                    disabled={updatingStatus}
+                    onClick={() => {
+                      const reason = prompt('Optional reason for ignoring event:');
+                      handleUpdateEventStatus(selectedEvent.id, 'IGNORED', reason || undefined);
+                    }}
+                    className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs font-semibold transition"
+                  >
+                    Ignore
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition"
+                >
+                  Close
+                </button>
+              </div>
+
+              {/* Event Status Audit Trail */}
+              {eventHistory.length > 0 && (
+                <div className="pt-2 border-t">
+                  <span className="text-xs font-semibold uppercase text-gray-400">Resolution History</span>
+                  <div className="mt-2 space-y-1">
+                    {eventHistory.map((h) => (
+                      <div key={h.id} className="text-[11px] text-gray-600 flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <span>{h.oldStatus} &rarr; <strong>{h.newStatus}</strong> by {h.changedBy} {h.reason ? `(${h.reason})` : ''}</span>
+                        <span className="text-gray-400 font-mono">{new Date(h.changedAt).toLocaleTimeString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* USER ACTIVITY MODAL */}
         {selectedUserForActivity && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+            <div className="bg-white rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
               <div className="flex items-center justify-between border-b pb-3">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">User Activity Timeline</h3>

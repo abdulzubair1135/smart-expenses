@@ -143,6 +143,41 @@ export interface PasswordReset {
   createdAt: string;
 }
 
+export interface MonitoringEvent {
+  id: string;
+  eventType: string;
+  severity: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
+  source: 'ANDROID' | 'BACKEND' | 'DATABASE' | 'SYNC' | 'ADMIN';
+  errorCode: string;
+  message: string;
+  stackTrace?: string;
+  screenName?: string;
+  operationName?: string;
+  appVersion: string;
+  appBuild: string;
+  androidVersion?: string;
+  deviceModel?: string;
+  environment: string;
+  userId?: string | null;
+  installationId: string;
+  correlationId: string;
+  occurredAt: string;
+  receivedAt: string;
+  status: 'NEW' | 'ACKNOWLEDGED' | 'RESOLVED' | 'IGNORED';
+  occurrenceCount: number;
+  metadataJson: Record<string, any>;
+}
+
+export interface MonitoringEventStatusHistory {
+  id: string;
+  eventId: string;
+  oldStatus: string;
+  newStatus: string;
+  changedBy: string;
+  reason?: string;
+  changedAt: string;
+}
+
 export class MemoryStore {
   profiles: Map<string, Profile> = new Map();
   passwords: Map<string, string> = new Map();
@@ -159,6 +194,8 @@ export class MemoryStore {
   userPresence: Map<string, UserPresence> = new Map();
   backupRecords: Map<string, BackupRecord> = new Map();
   passwordResets: Map<string, PasswordReset> = new Map();
+  monitoringEvents: Map<string, MonitoringEvent> = new Map();
+  monitoringEventHistory: MonitoringEventStatusHistory[] = [];
 
   constructor() {
     this.seedDefaultData();

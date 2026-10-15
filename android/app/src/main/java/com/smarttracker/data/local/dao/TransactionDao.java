@@ -23,6 +23,9 @@ public interface TransactionDao {
     @Query("DELETE FROM transactions WHERE id = :id")
     void deleteById(String id);
 
+    @Query("SELECT * FROM transactions WHERE id = :id LIMIT 1")
+    TransactionEntity getTransactionById(String id);
+
     @Query("SELECT * FROM transactions WHERE userId = :userId ORDER BY transactionDate DESC")
     LiveData<List<TransactionEntity>> getAllTransactionsLive(String userId);
 

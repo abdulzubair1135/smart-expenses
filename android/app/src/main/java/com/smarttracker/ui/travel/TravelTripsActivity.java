@@ -201,6 +201,7 @@ public class TravelTripsActivity extends AppCompatActivity {
                     );
 
                     repository.insertTrip(newTrip);
+                    com.smarttracker.core.sync.SyncManager.getInstance(this).triggerSync();
                     Toast.makeText(this, "Trip '" + name + "' created successfully", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())

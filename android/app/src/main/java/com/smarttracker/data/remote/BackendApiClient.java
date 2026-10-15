@@ -222,9 +222,201 @@ public class BackendApiClient {
         });
     }
 
+    // 8. Upload Monitoring Events Batch
+    public void uploadMonitoringEvents(java.util.List<com.smarttracker.data.local.entity.MonitoringEventEntity> events, ApiCallback<JsonObject> callback) {
+        com.google.gson.JsonArray array = new com.google.gson.JsonArray();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US);
+        sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+
+        for (com.smarttracker.data.local.entity.MonitoringEventEntity e : events) {
+            JsonObject obj = new JsonObject();
+            obj.addProperty("id", e.id);
+            obj.addProperty("eventType", e.eventType);
+            obj.addProperty("severity", e.severity);
+            obj.addProperty("source", e.source);
+            obj.addProperty("errorCode", e.errorCode != null ? e.errorCode : "UNKNOWN");
+            obj.addProperty("message", e.message != null ? e.message : "");
+            if (e.stackTrace != null && !e.stackTrace.isEmpty()) {
+                obj.addProperty("stackTrace", e.stackTrace);
+            }
+            if (e.screenName != null && !e.screenName.isEmpty()) {
+                obj.addProperty("screenName", e.screenName);
+            }
+            if (e.operationName != null && !e.operationName.isEmpty()) {
+                obj.addProperty("operationName", e.operationName);
+            }
+            obj.addProperty("appVersion", e.appVersion);
+            obj.addProperty("appBuild", e.appBuild);
+            obj.addProperty("androidVersion", e.androidVersion != null ? e.androidVersion : "");
+            obj.addProperty("deviceModel", e.deviceModel != null ? e.deviceModel : "");
+            obj.addProperty("installationId", e.installationId);
+            obj.addProperty("correlationId", e.correlationId);
+            obj.addProperty("occurredAt", sdf.format(new java.util.Date(e.occurredAt)));
+            obj.addProperty("status", "NEW");
+            obj.addProperty("occurrenceCount", 1);
+            obj.add("metadataJson", new JsonObject());
+
+            if (e.userId != null && !e.userId.isEmpty()) {
+                obj.addProperty("userId", e.userId);
+            }
+            array.add(obj);
+        }
+
+        JsonObject root = new JsonObject();
+        root.add("events", array);
+
+        String token = sessionManager.getAuthToken();
+        postJson("/api/v1/monitoring/events/batch", root.toString(), token, new NetworkCallback() {
+            @Override
+            public void onResponse(JsonObject json) {
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onSuccess(json));
+                }
+            }
+
+            @Override
+            public void onFailure(String error) {
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onError(error));
+                }
+            }
+        });
+    }
+
+    // 9. Push Account Data Sync
+    public void pushSyncData(JsonObject payload, ApiCallback<JsonObject> callback) {
+        String token = sessionManager.getAuthToken();
+        if (token == null || token.trim().isEmpty()) {
+            if (callback != null) {
+                mainHandler.post(() -> callback.onError("Authentication token required for data sync"));
+            }
+            return;
+        }
+
+        postJson("/api/v1/sync/push", payload.toString(), token, new NetworkCallback() {
+            @Override
+            public void onResponse(JsonObject json) {
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onSuccess(json));
+                }
+            }
+
+            @Override
+            public void onFailure(String error) {
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onError(error));
+                }
+            }
+        });
+    }
+
+    // 10. Pull Account Data Sync
+    public void pullSyncData(String since, ApiCallback<JsonObject> callback) {
+        String token = sessionManager.getAuthToken();
+        if (token == null || token.trim().isEmpty()) {
+            if (callback != null) {
+                mainHandler.post(() -> callback.onError("Authentication token required for data sync"));
+            }
+            return;
+        }
+
+        String endpoint = "/api/v1/sync/pull" + (since != null && !since.isEmpty() ? "?since=" + since : "");
+        getJson(endpoint, token, new NetworkCallback() {
+            @Override
+            public void onResponse(JsonObject json) {
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onSuccess(json));
+                }
+            }
+
+            @Override
+            public void onFailure(String error) {
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onError(error));
+                }
+            }
+        });
+    }
+
     private interface NetworkCallback {
         void onResponse(JsonObject json);
         void onFailure(String error);
+    }
+
+    private void getJson(String endpoint, String authToken, NetworkCallback callback) {
+        executeSingleGet(CLOUD_BASE_URL + endpoint, authToken, new NetworkCallback() {
+            @Override
+            public void onResponse(JsonObject json) {
+                callback.onResponse(json);
+            }
+
+            @Override
+            public void onFailure(String cloudError) {
+                Log.w(TAG, "Cloud GET request failed (" + cloudError + "). Trying local USB host...");
+                executeSingleGet(USB_LOCAL_URL + endpoint, authToken, new NetworkCallback() {
+                    @Override
+                    public void onResponse(JsonObject json) {
+                        callback.onResponse(json);
+                    }
+
+                    @Override
+                    public void onFailure(String usbError) {
+                        executeSingleGet(EMULATOR_URL + endpoint, authToken, new NetworkCallback() {
+                            @Override
+                            public void onResponse(JsonObject json) {
+                                callback.onResponse(json);
+                            }
+
+                            @Override
+                            public void onFailure(String emuError) {
+                                callback.onFailure(cloudError);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    private void executeSingleGet(String fullUrl, String authToken, NetworkCallback callback) {
+        Request.Builder builder = new Request.Builder()
+                .url(fullUrl)
+                .get();
+
+        if (authToken != null && !authToken.trim().isEmpty()) {
+            builder.addHeader("Authorization", "Bearer " + authToken);
+        }
+
+        httpClient.newCall(builder.build()).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                callback.onFailure(e.getMessage() != null ? e.getMessage() : "Network request failed");
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                String responseStr = response.body() != null ? response.body().string() : "{}";
+                try {
+                    JsonObject json = JsonParser.parseString(responseStr).getAsJsonObject();
+                    if (response.isSuccessful()) {
+                        callback.onResponse(json);
+                    } else {
+                        String errMsg = "Request failed with code " + response.code();
+                        if (json.has("error") && json.get("error").isJsonObject()) {
+                            JsonObject errObj = json.getAsJsonObject("error");
+                            if (errObj.has("message")) {
+                                errMsg = errObj.get("message").getAsString();
+                            }
+                        } else if (json.has("message")) {
+                            errMsg = json.get("message").getAsString();
+                        }
+                        callback.onFailure(errMsg);
+                    }
+                } catch (Exception parseEx) {
+                    callback.onFailure("Failed to parse server response");
+                }
+            }
+        });
     }
 
     private void postJson(String endpoint, String jsonBody, String authToken, NetworkCallback callback) {

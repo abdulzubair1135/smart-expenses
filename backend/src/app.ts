@@ -16,6 +16,7 @@ import { tripsRouter } from './routes/trips';
 import { expensesRouter } from './routes/expenses';
 import { presenceRouter } from './routes/presence';
 import { backupsRouter } from './routes/backups';
+import { monitoringRouter } from './routes/monitoring';
 
 export function createApp(): Application {
   const app = express();
@@ -36,6 +37,8 @@ export function createApp(): Application {
   app.use('/api/v1/insights', insightsRouter);
   app.use('/api/v1/sync', syncRouter);
   app.use('/api/v1/admin', adminRouter);
+  app.use('/api/v1/monitoring', monitoringRouter);
+  app.use('/api/v1/admin/monitoring', monitoringRouter);
   app.use('/api/v1/voice', voiceRouter);
   app.use('/api/v1/trips', tripsRouter);
   app.use('/api/v1/expenses', expensesRouter);

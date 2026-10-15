@@ -43,4 +43,7 @@ public interface TripDao {
 
     @Query("UPDATE trips SET isSynced = 1 WHERE id = :id")
     void markAsSynced(String id);
+
+    @Query("UPDATE trips SET userId = :newUserId")
+    void reassignAllTripsToUser(String newUserId);
 }

@@ -21,4 +21,7 @@ public interface SavingGoalDao {
 
     @Query("SELECT * FROM saving_goals WHERE userId = :userId")
     LiveData<List<SavingGoalEntity>> getAllGoalsLive(String userId);
+
+    @Query("UPDATE saving_goals SET userId = :newUserId")
+    void reassignAllGoalsToUser(String newUserId);
 }

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
 import { store, Profile, PasswordReset } from '../repositories/store';
+import { supabaseAdmin, isSupabaseConfigured } from '../services/supabase';
 
 export const authRouter = Router();
 
@@ -93,7 +94,7 @@ authRouter.post('/register', (req, res) => {
 });
 
 // Login / Session establishment
-authRouter.post('/login', (req, res) => {
+authRouter.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     res.status(400).json({ success: false, error: { message: 'Email and password required' } });
@@ -101,9 +102,39 @@ authRouter.post('/login', (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const profile = Array.from(store.profiles.values()).find(
+  let profile = Array.from(store.profiles.values()).find(
     p => p.email.toLowerCase() === normalizedEmail
   );
+
+  // If not found in memory store, lookup Supabase PostgreSQL profiles directly
+  if (!profile && isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data: dbUser } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+
+      if (dbUser) {
+        profile = {
+          id: dbUser.id,
+          email: dbUser.email,
+          displayName: dbUser.display_name || 'User',
+          accountStatus: dbUser.account_status || 'verified',
+          termsConsent: {
+            termsVersion: dbUser.terms_version || '2026.1',
+            privacyVersion: '2026.1',
+            consentedAt: dbUser.created_at || new Date().toISOString()
+          },
+          createdAt: dbUser.created_at
+        };
+        store.profiles.set(dbUser.id, profile);
+        store.passwords.set(dbUser.id, password); // Cache provided password
+      }
+    } catch (e) {
+      console.warn('Supabase auth lookup error:', e);
+    }
+  }
 
   if (!profile) {
     res.status(401).json({ success: false, error: { message: 'Invalid email or password' } });

@@ -27,4 +27,7 @@ public interface AccountDao {
 
     @Query("SELECT * FROM accounts WHERE id = :id LIMIT 1")
     AccountEntity getAccountById(String id);
+
+    @Query("UPDATE accounts SET userId = :newUserId")
+    void reassignAllAccountsToUser(String newUserId);
 }

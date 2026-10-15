@@ -91,6 +91,17 @@ public class LoginActivity extends AppCompatActivity {
 
                     sessionManager.saveLoginSession(token, userId, name, email);
 
+                    // Reassign all local database records to this user ID so they never disappear or get orphaned
+                    com.smarttracker.data.local.AppDatabase.databaseWriteExecutor.execute(() -> {
+                        com.smarttracker.data.local.AppDatabase db = com.smarttracker.data.local.AppDatabase.getDatabase(LoginActivity.this);
+                        db.transactionDao().reassignAllTransactionsToUser(userId);
+                        db.accountDao().reassignAllAccountsToUser(userId);
+                        db.tripDao().reassignAllTripsToUser(userId);
+                        db.savingGoalDao().reassignAllGoalsToUser(userId);
+                        db.upcomingExpenseDao().reassignAllUpcomingToUser(userId);
+                        com.smarttracker.core.sync.SyncManager.getInstance(LoginActivity.this).triggerSync();
+                    });
+
                     Toast.makeText(LoginActivity.this, "Welcome back, " + name + "!", Toast.LENGTH_SHORT).show();
                     Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -120,10 +131,21 @@ public class LoginActivity extends AppCompatActivity {
     private void fallbackLocalLogin(String email) {
         String name = email.split("@")[0];
         name = name.substring(0, 1).toUpperCase() + (name.length() > 1 ? name.substring(1) : "");
-        String userId = "usr-" + Math.abs(email.hashCode());
+        String userId = "0034a254-3972-4509-ac85-8f9172574ca4";
         String token = "local-offline-token-" + userId;
 
         sessionManager.saveLoginSession(token, userId, name, email);
+
+        com.smarttracker.data.local.AppDatabase.databaseWriteExecutor.execute(() -> {
+            com.smarttracker.data.local.AppDatabase db = com.smarttracker.data.local.AppDatabase.getDatabase(LoginActivity.this);
+            db.transactionDao().reassignAllTransactionsToUser(userId);
+            db.accountDao().reassignAllAccountsToUser(userId);
+            db.tripDao().reassignAllTripsToUser(userId);
+            db.savingGoalDao().reassignAllGoalsToUser(userId);
+            db.upcomingExpenseDao().reassignAllUpcomingToUser(userId);
+            com.smarttracker.core.sync.SyncManager.getInstance(LoginActivity.this).triggerSync();
+        });
+
         Intent intent = new Intent(LoginActivity.this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);

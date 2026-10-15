@@ -21,4 +21,7 @@ public interface UpcomingExpenseDao {
 
     @Query("SELECT * FROM upcoming_expenses WHERE userId = :userId ORDER BY dueDate ASC")
     LiveData<List<UpcomingExpenseEntity>> getAllUpcomingLive(String userId);
+
+    @Query("UPDATE upcoming_expenses SET userId = :newUserId")
+    void reassignAllUpcomingToUser(String newUserId);
 }

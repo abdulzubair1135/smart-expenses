@@ -164,22 +164,79 @@ export class DataAdapter {
 
     if (isSupabaseConfigured() && supabaseAdmin) {
       try {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+        // 1. Resolve account_id to valid Supabase UUID
+        let resolvedAccountId = tx.accountId && isUuid.test(tx.accountId) ? tx.accountId : null;
+        if (!resolvedAccountId && tx.accountId) {
+          const accLower = tx.accountId.toLowerCase();
+          const targetType = accLower.includes('cash') ? 'cash'
+            : accLower.includes('bank') ? 'bank'
+            : accLower.includes('savings') ? 'savings'
+            : 'upi';
+
+          const { data: matchedAcc } = await supabaseAdmin
+            .from('accounts')
+            .select('id')
+            .eq('user_id', tx.userId)
+            .eq('type', targetType)
+            .limit(1)
+            .maybeSingle();
+
+          if (matchedAcc?.id) {
+            resolvedAccountId = matchedAcc.id;
+          } else {
+            const { data: anyAcc } = await supabaseAdmin
+              .from('accounts')
+              .select('id')
+              .eq('user_id', tx.userId)
+              .limit(1)
+              .maybeSingle();
+            resolvedAccountId = anyAcc?.id || null;
+          }
+        }
+
+        // 2. Resolve category_id to valid Supabase UUID
+        let resolvedCategoryId = tx.categoryId && isUuid.test(tx.categoryId) ? tx.categoryId : null;
+        if (!resolvedCategoryId && tx.categoryId) {
+          const catLower = tx.categoryId.toLowerCase();
+          const targetCat = catLower.includes('food') ? 'Food'
+            : catLower.includes('travel') ? 'Travel'
+            : catLower.includes('salary') ? 'Salary'
+            : catLower.includes('shop') ? 'Shopping'
+            : catLower.includes('bill') ? 'Bills'
+            : 'Others';
+
+          const { data: matchedCat } = await supabaseAdmin
+            .from('categories')
+            .select('id')
+            .ilike('name', targetCat)
+            .limit(1)
+            .maybeSingle();
+
+          if (matchedCat?.id) {
+            resolvedCategoryId = matchedCat.id;
+          }
+        }
+
+        const txUuid = isUuid.test(tx.id) ? tx.id : undefined;
+
         await supabaseAdmin.from('transactions').insert({
-          id: tx.id.startsWith('tx-') ? undefined : tx.id,
+          id: txUuid,
           user_id: tx.userId,
-          account_id: tx.accountId,
+          account_id: resolvedAccountId || tx.accountId,
           type: tx.type,
           amount_minor: tx.amountMinor,
-          currency_code: tx.currencyCode,
-          category_id: tx.categoryId,
+          currency_code: tx.currencyCode || 'INR',
+          category_id: resolvedCategoryId,
           description: tx.description,
           transaction_date: tx.transactionDate,
-          status: tx.status,
+          status: tx.status || 'completed',
           idempotency_key: tx.idempotencyKey,
           related_person: tx.relatedPerson,
-          destination_account_id: tx.destinationAccountId,
+          destination_account_id: tx.destinationAccountId && isUuid.test(tx.destinationAccountId) ? tx.destinationAccountId : null,
           expense_group: tx.expenseGroup || 'GENERAL',
-          trip_id: tx.tripId,
+          trip_id: tx.tripId && isUuid.test(tx.tripId) ? tx.tripId : null,
           is_important: tx.isImportant || false,
           created_at: tx.createdAt
         });

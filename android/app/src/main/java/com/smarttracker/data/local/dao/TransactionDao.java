@@ -47,6 +47,9 @@ public interface TransactionDao {
     @Query("UPDATE transactions SET isSynced = 1 WHERE id = :id")
     void markAsSynced(String id);
 
+    @Query("UPDATE transactions SET userId = :newUserId")
+    void reassignAllTransactionsToUser(String newUserId);
+
     @Query("SELECT * FROM transactions WHERE userId = :userId ORDER BY createdAt DESC LIMIT 1")
     TransactionEntity getLatestTransaction(String userId);
 

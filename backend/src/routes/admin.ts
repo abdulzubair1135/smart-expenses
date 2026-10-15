@@ -136,6 +136,19 @@ adminRouter.get('/overview', authenticateAdmin, async (req, res) => {
   const totalBackupsCompleted = backups.filter(b => b.status === 'completed').length;
   const totalBackupsFailed = backups.filter(b => b.status === 'failed').length;
 
+  // Count total transactions from Supabase (source of truth)
+  let totalTransactionsRecorded = 0;
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { count } = await supabaseAdmin
+        .from('transactions')
+        .select('*', { count: 'exact', head: true });
+      totalTransactionsRecorded = count ?? 0;
+    } catch (e) {
+      console.warn('Could not count Supabase transactions for overview:', e);
+    }
+  }
+
   res.status(200).json({
     success: true,
     data: {
@@ -150,7 +163,7 @@ adminRouter.get('/overview', authenticateAdmin, async (req, res) => {
       weeklyActiveUsers: wauSet.size,
       totalBackupsCompleted,
       totalBackupsFailed,
-      totalTransactionsRecorded: store.transactions.size,
+      totalTransactionsRecorded,
       totalConnectedDevices: store.deviceTokens.size,
       syncFailuresCount: 0,
       serverUptimeSeconds: Math.floor(process.uptime()),
@@ -205,25 +218,67 @@ adminRouter.get('/users', authenticateAdmin, async (req, res) => {
 });
 
 // 3. User operational activity timeline (Financial Privacy Wall Enforced)
-adminRouter.get('/users/:id/activity', authenticateAdmin, (req, res) => {
+adminRouter.get('/users/:id/activity', authenticateAdmin, async (req, res) => {
   const userId = req.params.id as string;
-  const user = store.profiles.get(userId);
 
-  if (!user) {
+  // Resolve user - check local store first, then Supabase profiles
+  let userFound = store.profiles.has(userId);
+  if (!userFound && isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data: prof } = await supabaseAdmin.from('profiles').select('id').eq('id', userId).maybeSingle();
+      userFound = !!prof;
+    } catch (_) {}
+  }
+
+  if (!userFound) {
     res.status(404).json({ success: false, error: { message: 'User not found' } });
     return;
   }
 
-  // Filter events for this user and strip any sensitive metadata
-  const events = store.activityEvents
+  const eventsMap = new Map<string, any>();
+
+  // 1. In-memory store events for this user
+  store.activityEvents
     .filter(evt => evt.userId === userId)
-    .map(evt => ({
-      id: evt.id,
-      eventType: evt.eventType,
-      occurredAt: evt.occurredAt,
-      result: evt.result,
-      metadata: evt.metadata ? { ...evt.metadata, amount: undefined, balance: undefined, memo: undefined } : {}
-    }));
+    .forEach(evt => {
+      eventsMap.set(evt.id, {
+        id: evt.id,
+        eventType: evt.eventType,
+        occurredAt: evt.occurredAt,
+        result: evt.result,
+        metadata: evt.metadata ? { ...evt.metadata, amount: undefined, balance: undefined, memo: undefined } : {}
+      });
+    });
+
+  // 2. Supabase activity_events (source of truth if table exists)
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data: dbEvents } = await supabaseAdmin
+        .from('activity_events')
+        .select('*')
+        .eq('user_id', userId)
+        .order('occurred_at', { ascending: false })
+        .limit(100);
+
+      if (dbEvents && dbEvents.length > 0) {
+        eventsMap.clear(); // Supabase is the source of truth
+        for (const evt of dbEvents) {
+          eventsMap.set(evt.id, {
+            id: evt.id,
+            eventType: evt.event_type || evt.eventType,
+            occurredAt: evt.occurred_at || evt.occurredAt,
+            result: evt.result || 'success',
+            metadata: {}
+          });
+        }
+      }
+    } catch (_) {
+      // activity_events table might not exist yet, that's OK
+    }
+  }
+
+  const events = Array.from(eventsMap.values())
+    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
 
   res.status(200).json({ success: true, data: events });
 });

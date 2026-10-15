@@ -239,38 +239,6 @@ export class MemoryStore {
       this.accounts.set(`acc-upi-${primaryUserId}`, { id: `acc-upi-${primaryUserId}`, userId: primaryUserId, name: 'UPI', type: 'upi', openingBalanceMinor: 150000, currencyCode: 'INR', createdAt: nowIso });
       this.accounts.set(`acc-savings-${primaryUserId}`, { id: `acc-savings-${primaryUserId}`, userId: primaryUserId, name: 'Savings', type: 'savings', openingBalanceMinor: 500000, currencyCode: 'INR', createdAt: nowIso });
 
-      // Real Financial Transactions from Android APK
-      const realAppTxs = [
-        { id: 'tx-real-1', type: 'received', amountMinor: 656500, acc: `acc-cash-${primaryUserId}`, cat: 'cat-salary', desc: 'Salary / Gift', date: '2026-10-13T23:18:25.000Z' },
-        { id: 'tx-real-2', type: 'expense', amountMinor: 4000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-others', desc: 'Daily Expense', date: '2026-10-14T12:00:00.000Z' },
-        { id: 'tx-real-3', type: 'expense', amountMinor: 5000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-others', desc: 'Daily Expense', date: '2026-10-14T12:00:00.000Z' },
-        { id: 'tx-real-4', type: 'received', amountMinor: 4000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-salary', desc: 'Earnings', date: '2026-10-14T12:00:00.000Z' },
-        { id: 'tx-real-5', type: 'received', amountMinor: 1000000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-salary', desc: 'Earnings', date: '2026-10-14T12:00:00.000Z' },
-        { id: 'tx-real-6', type: 'received', amountMinor: 2000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-salary', desc: 'Earnings', date: '2026-10-14T12:00:00.000Z' },
-        { id: 'tx-real-7', type: 'received', amountMinor: 4000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-salary', desc: 'Earnings', date: '2026-10-14T12:00:00.000Z' },
-        { id: 'tx-real-8', type: 'received', amountMinor: 15000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-salary', desc: 'Earnings', date: '2026-10-14T12:00:00.000Z' },
-        { id: 'tx-real-9', type: 'lend', amountMinor: 50000, acc: `acc-upi-${primaryUserId}`, cat: null, desc: 'Rohan - Udhar Diye', rel: 'Rohan', date: '2026-10-14T12:00:00.000Z' },
-        { id: 'tx-real-10', type: 'expense', amountMinor: 25000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-food', desc: 'Food - Expense', date: '2026-10-13T12:30:00.000Z' },
-        { id: 'tx-real-11', type: 'received', amountMinor: 50000, acc: `acc-cash-${primaryUserId}`, cat: null, desc: 'Rahul - Received', rel: 'Rahul', date: '2026-10-13T11:45:00.000Z' }
-      ];
-
-      for (const t of realAppTxs) {
-        this.transactions.set(t.id, {
-          id: t.id,
-          userId: primaryUserId,
-          accountId: t.acc,
-          type: t.type as any,
-          amountMinor: t.amountMinor,
-          currencyCode: 'INR',
-          categoryId: t.cat,
-          description: t.desc,
-          relatedPerson: (t as any).rel || null,
-          transactionDate: t.date,
-          status: 'completed',
-          createdAt: t.date
-        });
-      }
-
       // Presence
       this.userPresence.set(primaryUserId, {
         userId: primaryUserId,
@@ -280,10 +248,8 @@ export class MemoryStore {
         updatedAt: nowIso
       });
 
-      // Operational Activity
+      // Real activity events only — no fake transaction events
       this.recordActivity(primaryUserId, 'ACCOUNT_VERIFIED', 'success');
-      this.recordActivity(primaryUserId, 'TRANSACTION_RECORDED', 'success', { description: 'Electricity Bill Payment', amount: '₹ 1,200.00' });
-      this.recordActivity(primaryUserId, 'TRANSACTION_RECORDED', 'success', { description: 'Lunch & Tea with College Friends', amount: '₹ 450.00' });
       this.recordActivity(primaryUserId, 'SESSION_INITIALIZED', 'success');
     }
 

@@ -3,11 +3,10 @@ package com.smarttracker.ui.splash;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.smarttracker.R;
 import com.smarttracker.data.session.SessionManager;
 import com.smarttracker.databinding.ActivitySplashBinding;
 import com.smarttracker.ui.auth.LoginActivity;
@@ -27,7 +26,8 @@ public class SplashActivity extends AppCompatActivity {
         // Check persistent local session
         SessionManager sessionManager = SessionManager.getInstance(this);
 
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+        // Start Cinematic Video-Like Intro
+        binding.cinematicSplashView.setOnIntroFinishListener(() -> {
             Intent nextIntent;
             if (sessionManager.isLoggedIn()) {
                 nextIntent = new Intent(SplashActivity.this, MainActivity.class);
@@ -35,7 +35,10 @@ public class SplashActivity extends AppCompatActivity {
                 nextIntent = new Intent(SplashActivity.this, LoginActivity.class);
             }
             startActivity(nextIntent);
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             finish();
-        }, 1000);
+        });
+
+        binding.cinematicSplashView.startIntroAnimation();
     }
 }

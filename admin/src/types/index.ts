@@ -102,25 +102,42 @@ export interface ServiceHealth {
     status: string;
     uptimeSeconds: number;
     nodeVersion: string;
+    environment?: string;
   };
   databaseConnectivity: string | {
     connected: boolean;
     configured?: boolean;
     latencyMs?: number;
     message?: string;
+    cloudProject?: string;
+    totalProfiles?: number;
+    totalTransactions?: number;
+    totalAccounts?: number;
+    totalTables?: number;
+    rlsPolicies?: string;
   };
   monitoringIngestion: {
     status: string;
     eventsQueuedLocally: number;
     lastIngestedAt: string | null;
+    criticalEvents?: number;
+    errorEvents?: number;
+    deduplicationStrategy?: string;
   };
   authentication: {
     status: string;
     mode: string;
+    activeUsers?: number;
+    primaryAccount?: string;
+    privacyWall?: string;
   };
   backgroundSync: {
     status: string;
     syncFailuresCount: number;
+    connectedDevice?: string;
+    appPackage?: string;
+    syncStrategy?: string;
+    multiEntityModels?: string;
   };
 }
 

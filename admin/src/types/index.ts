@@ -103,7 +103,12 @@ export interface ServiceHealth {
     uptimeSeconds: number;
     nodeVersion: string;
   };
-  databaseConnectivity: string;
+  databaseConnectivity: string | {
+    connected: boolean;
+    configured?: boolean;
+    latencyMs?: number;
+    message?: string;
+  };
   monitoringIngestion: {
     status: string;
     eventsQueuedLocally: number;

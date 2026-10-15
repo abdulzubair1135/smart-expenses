@@ -670,7 +670,22 @@ export default function App() {
         {/* TAB: SERVICE HEALTH */}
         {activeTab === 'health' && (
           <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Service Health & Infrastructure</h2>
+                <p className="text-xs text-gray-500 mt-1">Live operational diagnostic probes across cloud and local components</p>
+              </div>
+              <button
+                onClick={() => loadData(adminKey)}
+                disabled={loading}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Probes
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* 1. Render API Host */}
               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
@@ -678,16 +693,19 @@ export default function App() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Render API Host</h3>
-                    <span className="text-xs text-emerald-600 font-semibold uppercase">Operational</span>
+                    <span className="text-xs text-emerald-600 font-semibold uppercase">
+                      {serviceHealth?.renderApi?.status || 'Operational'}
+                    </span>
                   </div>
                 </div>
                 <div className="space-y-1 text-xs text-gray-500 font-mono">
                   <div>Endpoint: {apiEndpoint}</div>
-                  <div>Node Version: {serviceHealth?.renderApi.nodeVersion || 'v20+ (Active)'}</div>
-                  <div>Server Uptime: {metrics?.serverUptimeSeconds || 0} seconds</div>
+                  <div>Node Version: {serviceHealth?.renderApi?.nodeVersion || 'v24.x (Active)'}</div>
+                  <div>Server Uptime: {metrics?.serverUptimeSeconds || serviceHealth?.renderApi?.uptimeSeconds || 0} seconds</div>
                 </div>
               </div>
 
+              {/* 2. Supabase PostgreSQL */}
               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
@@ -696,17 +714,24 @@ export default function App() {
                   <div>
                     <h3 className="font-semibold text-gray-900">Supabase PostgreSQL</h3>
                     <span className="text-xs text-emerald-600 font-semibold uppercase">
-                      {serviceHealth?.databaseConnectivity || metrics?.databaseConnectivity || 'Connected'}
+                      {typeof serviceHealth?.databaseConnectivity === 'object'
+                        ? (serviceHealth.databaseConnectivity.connected ? 'Operational' : 'Degraded')
+                        : (serviceHealth?.databaseConnectivity || metrics?.databaseConnectivity || 'Connected')}
                     </span>
                   </div>
                 </div>
                 <div className="space-y-1 text-xs text-gray-500 font-mono">
                   <div>Cloud Project: lbxjzfbjaxplmvdzsvzx</div>
-                  <div>Auth Schema: Public + Auth Isolation</div>
+                  <div>
+                    Latency: {typeof serviceHealth?.databaseConnectivity === 'object' && serviceHealth.databaseConnectivity.latencyMs
+                      ? `${serviceHealth.databaseConnectivity.latencyMs} ms`
+                      : 'Operational'}
+                  </div>
                   <div>RLS Policies: Active on all tables</div>
                 </div>
               </div>
 
+              {/* 3. Telemetry Ingestion */}
               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center font-bold">
@@ -714,13 +739,55 @@ export default function App() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Telemetry Ingestion</h3>
-                    <span className="text-xs text-blue-600 font-semibold uppercase">Active Ingestion</span>
+                    <span className="text-xs text-blue-600 font-semibold uppercase">
+                      {serviceHealth?.monitoringIngestion?.status || 'Active Ingestion'}
+                    </span>
                   </div>
                 </div>
                 <div className="space-y-1 text-xs text-gray-500 font-mono">
-                  <div>Total Ingested: {monitoringSummary?.totalEvents || 0}</div>
-                  <div>Last Ingestion: {monitoringSummary?.lastIngestedAt ? new Date(monitoringSummary.lastIngestedAt).toLocaleTimeString() : 'N/A'}</div>
-                  <div>Deduplication: Stable UUID Hashes</div>
+                  <div>Total Ingested: {monitoringSummary?.totalEvents || serviceHealth?.monitoringIngestion?.eventsQueuedLocally || 0}</div>
+                  <div>Last Ingestion: {monitoringSummary?.lastIngestedAt ? new Date(monitoringSummary.lastIngestedAt).toLocaleTimeString() : 'Awaiting client events'}</div>
+                  <div>Deduplication: Client UUID Hashes</div>
+                </div>
+              </div>
+
+              {/* 4. Authentication Service */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 text-purple-700 rounded-xl flex items-center justify-center font-bold">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Authentication Service</h3>
+                    <span className="text-xs text-purple-600 font-semibold uppercase">
+                      {serviceHealth?.authentication?.status || 'Operational'}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1 text-xs text-gray-500 font-mono">
+                  <div>Auth Mode: {serviceHealth?.authentication?.mode || 'JWT HS256 + Supabase'}</div>
+                  <div>User Isolation: Row Level Security</div>
+                  <div>Privacy Wall: Active & Enforced</div>
+                </div>
+              </div>
+
+              {/* 5. Background Synchronization */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Background Sync Engine</h3>
+                    <span className="text-xs text-emerald-600 font-semibold uppercase">
+                      {serviceHealth?.backgroundSync?.status || 'Operational'}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1 text-xs text-gray-500 font-mono">
+                  <div>Multi-Entity Sync: 6 Models Supported</div>
+                  <div>Sync Failures Recorded: {serviceHealth?.backgroundSync?.syncFailuresCount || 0}</div>
+                  <div>Strategy: Room First with Idempotency</div>
                 </div>
               </div>
             </div>

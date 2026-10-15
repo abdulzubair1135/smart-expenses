@@ -1,14 +1,54 @@
 import { Router } from 'express';
 import { authenticateAdmin } from '../middleware/adminAuth';
-import { store } from '../repositories/store';
+import { store, Profile } from '../repositories/store';
+import { supabaseAdmin, isSupabaseConfigured } from '../services/supabase';
 
 export const adminRouter = Router();
 
 const ONLINE_HEARTBEAT_WINDOW_MS = 120 * 1000; // 120 seconds
 
+async function getAllAdminProfiles(): Promise<Profile[]> {
+  const profileMap = new Map<string, Profile>();
+  
+  // 1. Local store profiles
+  for (const p of store.profiles.values()) {
+    profileMap.set(p.id, p);
+  }
+
+  // 2. Remote Supabase profiles
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data: remoteProfiles } = await supabaseAdmin.from('profiles').select('*');
+      if (remoteProfiles && remoteProfiles.length > 0) {
+        for (const rp of remoteProfiles) {
+          if (!profileMap.has(rp.id)) {
+            profileMap.set(rp.id, {
+              id: rp.id,
+              email: rp.email || '',
+              displayName: rp.display_name || 'User',
+              accountStatus: rp.account_status || 'verified',
+              termsConsent: {
+                termsVersion: rp.terms_version || '2026.1',
+                privacyVersion: '2026.1',
+                consentedAt: rp.created_at || new Date().toISOString()
+              },
+              lastLoginAt: rp.last_login_at,
+              createdAt: rp.created_at
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Could not query Supabase profiles for admin:', e);
+    }
+  }
+
+  return Array.from(profileMap.values());
+}
+
 // 1. Overview metrics
-adminRouter.get('/overview', authenticateAdmin, (req, res) => {
-  const users = Array.from(store.profiles.values());
+adminRouter.get('/overview', authenticateAdmin, async (req, res) => {
+  const users = await getAllAdminProfiles();
   const now = Date.now();
 
   const verifiedCount = users.filter(u => u.accountStatus === 'verified').length;
@@ -76,8 +116,8 @@ adminRouter.get('/overview', authenticateAdmin, (req, res) => {
 });
 
 // 2. User list with presence and backup status (Financial Privacy Wall Enforced)
-adminRouter.get('/users', authenticateAdmin, (req, res) => {
-  const users = Array.from(store.profiles.values());
+adminRouter.get('/users', authenticateAdmin, async (req, res) => {
+  const users = await getAllAdminProfiles();
   const now = Date.now();
 
   const userItems = users.map(user => {

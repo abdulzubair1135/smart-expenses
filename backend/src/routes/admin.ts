@@ -451,33 +451,8 @@ adminRouter.get('/users/:id/transactions', authenticateAdmin, async (req, res) =
   const userId = req.params.id as string;
   const txMap = new Map<string, any>();
 
-  // 1. Fetch from in-memory store
-  for (const tx of store.transactions.values()) {
-    if (tx.userId === userId) {
-      const cat = tx.categoryId ? store.categories.get(tx.categoryId) : null;
-      const acc = store.accounts.get(tx.accountId);
-      txMap.set(tx.id, {
-        id: tx.id,
-        userId: tx.userId,
-        type: tx.type,
-        amountMinor: tx.amountMinor,
-        amountFormatted: `₹ ${(tx.amountMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        currencyCode: tx.currencyCode || 'INR',
-        categoryName: cat ? cat.name : 'General',
-        categoryIcon: cat ? cat.iconKey : 'ic_category',
-        categoryColor: cat ? cat.colorHex : '#10B981',
-        accountName: acc ? acc.name : 'Default Account',
-        accountType: acc ? acc.type : 'cash',
-        description: tx.description || 'No description',
-        transactionDate: tx.transactionDate || tx.createdAt,
-        status: tx.status,
-        relatedPerson: tx.relatedPerson || null,
-        createdAt: tx.createdAt
-      });
-    }
-  }
-
-  // 2. Fetch from Supabase PostgreSQL
+  // 1. Fetch from Supabase PostgreSQL (Source of truth)
+  let supabaseLoaded = false;
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -491,41 +466,69 @@ adminRouter.get('/users/:id/transactions', authenticateAdmin, async (req, res) =
       }
 
       if (targetUserId) {
-        const { data: dbTxs } = await supabaseAdmin
+        const { data: dbTxs, error } = await supabaseAdmin
           .from('transactions')
           .select('*, categories(name, icon_key, color_hex), accounts:accounts!transactions_account_id_fkey(name, type)')
           .eq('user_id', targetUserId)
           .order('transaction_date', { ascending: false });
 
-      if (dbTxs && dbTxs.length > 0) {
-        txMap.clear(); // Supabase PostgreSQL is primary source of truth - clear fallback to prevent duplicate records
-        for (const tx of dbTxs) {
-          const cat = tx.categories;
-          const acc = tx.accounts;
-          const amountMinor = Number(tx.amount_minor || 0);
-          txMap.set(tx.id, {
-            id: tx.id,
-            userId: tx.user_id,
-            type: tx.type,
-            amountMinor: amountMinor,
-            amountFormatted: `₹ ${(amountMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            currencyCode: tx.currency_code || 'INR',
-            categoryName: cat?.name || 'General',
-            categoryIcon: cat?.icon_key || 'ic_category',
-            categoryColor: cat?.color_hex || '#10B981',
-            accountName: acc?.name || 'Account',
-            accountType: acc?.type || 'cash',
-            description: tx.description || 'No description',
-            transactionDate: tx.transaction_date || tx.created_at,
-            status: tx.status || 'completed',
-            relatedPerson: tx.related_person || null,
-            createdAt: tx.created_at
-          });
+        if (!error && dbTxs) {
+          supabaseLoaded = true;
+          for (const tx of dbTxs) {
+            const cat = tx.categories;
+            const acc = tx.accounts;
+            const amountMinor = Number(tx.amount_minor || 0);
+            txMap.set(tx.id, {
+              id: tx.id,
+              userId: tx.user_id,
+              type: tx.type,
+              amountMinor: amountMinor,
+              amountFormatted: `₹ ${(amountMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              currencyCode: tx.currency_code || 'INR',
+              categoryName: cat?.name || 'General',
+              categoryIcon: cat?.icon_key || 'ic_category',
+              categoryColor: cat?.color_hex || '#10B981',
+              accountName: acc?.name || 'Account',
+              accountType: acc?.type || 'cash',
+              description: tx.description || 'No description',
+              transactionDate: tx.transaction_date || tx.created_at,
+              status: tx.status || 'completed',
+              relatedPerson: tx.related_person || null,
+              createdAt: tx.created_at
+            });
+          }
         }
       }
-    }
-  } catch (e) {
+    } catch (e) {
       console.warn('Could not load Supabase transactions for admin:', e);
+    }
+  }
+
+  // 2. Fallback to in-memory store ONLY if Supabase is completely unavailable
+  if (!supabaseLoaded) {
+    for (const tx of store.transactions.values()) {
+      if (tx.userId === userId) {
+        const cat = tx.categoryId ? store.categories.get(tx.categoryId) : null;
+        const acc = store.accounts.get(tx.accountId);
+        txMap.set(tx.id, {
+          id: tx.id,
+          userId: tx.userId,
+          type: tx.type,
+          amountMinor: tx.amountMinor,
+          amountFormatted: `₹ ${(tx.amountMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          currencyCode: tx.currencyCode || 'INR',
+          categoryName: cat ? cat.name : 'General',
+          categoryIcon: cat ? cat.iconKey : 'ic_category',
+          categoryColor: cat ? cat.colorHex : '#10B981',
+          accountName: acc ? acc.name : 'Default Account',
+          accountType: acc ? acc.type : 'cash',
+          description: tx.description || 'No description',
+          transactionDate: tx.transactionDate || tx.createdAt,
+          status: tx.status,
+          relatedPerson: tx.relatedPerson || null,
+          createdAt: tx.createdAt
+        });
+      }
     }
   }
 

@@ -122,7 +122,9 @@ public abstract class AppDatabase extends RoomDatabase {
         public void onCreate(@NonNull SupportSQLiteDatabase db) {
             super.onCreate(db);
             databaseWriteExecutor.execute(() -> {
-                // Populate initial categories and demo accounts matching UI Reference
+                // Seed ONLY system-level categories (userId = null, shared across all users).
+                // NO demo accounts, NO demo transactions, NO demo goals.
+                // Real user data comes exclusively from Supabase pull-on-login via SyncManager.
                 CategoryDao catDao = INSTANCE.categoryDao();
                 List<CategoryEntity> defaultCats = new ArrayList<>();
                 defaultCats.add(new CategoryEntity("cat_food", null, "Food", "expense", "ic_food", "#EF4444"));
@@ -132,30 +134,6 @@ public abstract class AppDatabase extends RoomDatabase {
                 defaultCats.add(new CategoryEntity("cat_other", null, "Others", "expense", "ic_other", "#6B7280"));
                 defaultCats.add(new CategoryEntity("cat_salary", null, "Salary", "income", "ic_salary", "#10B981"));
                 catDao.insertAll(defaultCats);
-
-                // Default accounts for Demo User
-                String demoUserId = "d0000000-0000-0000-0000-000000000001";
-                AccountDao accDao = INSTANCE.accountDao();
-                List<AccountEntity> accounts = new ArrayList<>();
-                // Total: ₹10,500 (Cash ₹2,000 + Bank ₹8,000 + UPI ₹1,500 + Savings ₹5,000 = ₹16,500 with initial values)
-                accounts.add(new AccountEntity("acc_cash", demoUserId, "Cash", "cash", 200000, "INR", System.currentTimeMillis()));
-                accounts.add(new AccountEntity("acc_bank", demoUserId, "Bank", "bank", 800000, "INR", System.currentTimeMillis()));
-                accounts.add(new AccountEntity("acc_upi", demoUserId, "UPI", "upi", 150000, "INR", System.currentTimeMillis()));
-                accounts.add(new AccountEntity("acc_savings", demoUserId, "Savings", "savings", 500000, "INR", System.currentTimeMillis()));
-                accDao.insertAll(accounts);
-
-                // Initial Goal
-                SavingGoalDao goalDao = INSTANCE.savingGoalDao();
-                goalDao.insert(new SavingGoalEntity("goal_1", demoUserId, "New Phone", 3000000, 1200000, "2026-12-31"));
-
-                // Initial Upcoming
-                UpcomingExpenseDao upDao = INSTANCE.upcomingExpenseDao();
-                upDao.insert(new UpcomingExpenseEntity("up_1", demoUserId, "Electricity Bill", 120000, "5 Oct", true, "pending"));
-
-                // Initial Demo Transactions (Screen 3 & 12: Food ₹250, Received ₹500, Lent ₹1000, Transfer ₹2000)
-                TransactionDao txDao = INSTANCE.transactionDao();
-                txDao.insert(new TransactionEntity("tx_1", demoUserId, "acc_upi", "expense", 25000, "INR", "cat_food", "Food - Expense", "2026-10-13T12:30:00Z", "completed", null, null, null, true, System.currentTimeMillis()));
-                txDao.insert(new TransactionEntity("tx_2", demoUserId, "acc_cash", "received", 50000, "INR", null, "Rahul - Received", "2026-10-13T11:45:00Z", "completed", null, "Rahul", null, true, System.currentTimeMillis()));
             });
         }
     };

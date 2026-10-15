@@ -18,10 +18,14 @@ import com.smarttracker.data.local.entity.TransactionEntity;
 import com.smarttracker.data.local.entity.TripEntity;
 import com.smarttracker.data.local.entity.UpcomingExpenseEntity;
 
+import android.content.Context;
+import com.smarttracker.core.sync.SyncManager;
+
 import java.util.List;
 
 public class TransactionRepository {
 
+    private final Context applicationContext;
     private final TransactionDao transactionDao;
     private final AccountDao accountDao;
     private final CategoryDao categoryDao;
@@ -30,6 +34,7 @@ public class TransactionRepository {
     private final TripDao tripDao;
 
     public TransactionRepository(Application application) {
+        this.applicationContext = application.getApplicationContext();
         AppDatabase db = AppDatabase.getDatabase(application);
         this.transactionDao = db.transactionDao();
         this.accountDao = db.accountDao();
@@ -64,11 +69,21 @@ public class TransactionRepository {
     }
 
     public void insertTransaction(TransactionEntity transaction) {
-        AppDatabase.databaseWriteExecutor.execute(() -> transactionDao.insert(transaction));
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            transactionDao.insert(transaction);
+            if (applicationContext != null) {
+                SyncManager.getInstance(applicationContext).triggerSync();
+            }
+        });
     }
 
     public void deleteTransaction(String id) {
-        AppDatabase.databaseWriteExecutor.execute(() -> transactionDao.deleteById(id));
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            transactionDao.deleteById(id);
+            if (applicationContext != null) {
+                SyncManager.getInstance(applicationContext).triggerSync();
+            }
+        });
     }
 
     // ==========================================

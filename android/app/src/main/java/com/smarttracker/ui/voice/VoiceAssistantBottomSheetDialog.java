@@ -480,7 +480,7 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
         isSaving = true;
 
         String userId = sessionManager.getUserId();
-        String txId = "tx_" + UUID.randomUUID().toString().substring(0, 8);
+        String txId = UUID.randomUUID().toString();
 
         // Map category and account to seeded IDs
         String categoryId = "cat_other";
@@ -510,7 +510,7 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
                 currentDraft.description != null ? currentDraft.description : "Voice " + type,
                 isoDate,
                 "completed",
-                currentDraft.idempotencyKey,
+                currentDraft.idempotencyKey != null ? currentDraft.idempotencyKey : UUID.randomUUID().toString(),
                 currentDraft.recipient,
                 currentDraft.destinationAccount,
                 false,
@@ -519,6 +519,9 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
 
         // Save directly to Room local storage (100% offline)
         repository.insertTransaction(entity);
+        try {
+            com.smarttracker.core.sync.SyncManager.getInstance(getContext()).triggerSync();
+        } catch (Throwable ignored) {}
 
         String successMsg = "Ho gaya! Aapka " + (currentDraft.amountMinor / 100) + " rupaye ka " + type + " save ho gaya.";
         ttsManager.speak(successMsg);

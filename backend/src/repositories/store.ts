@@ -233,12 +233,6 @@ export class MemoryStore {
       this.activeTokens.add(`demo-user-${primaryUserId}`);
       this.activeTokens.add(primaryUserId);
 
-      // Real Accounts for Abdul from APK (Total: ₹ 16,500.00)
-      this.accounts.set(`acc-cash-${primaryUserId}`, { id: `acc-cash-${primaryUserId}`, userId: primaryUserId, name: 'Cash', type: 'cash', openingBalanceMinor: 200000, currencyCode: 'INR', createdAt: nowIso });
-      this.accounts.set(`acc-bank-${primaryUserId}`, { id: `acc-bank-${primaryUserId}`, userId: primaryUserId, name: 'Bank', type: 'bank', openingBalanceMinor: 800000, currencyCode: 'INR', createdAt: nowIso });
-      this.accounts.set(`acc-upi-${primaryUserId}`, { id: `acc-upi-${primaryUserId}`, userId: primaryUserId, name: 'UPI', type: 'upi', openingBalanceMinor: 150000, currencyCode: 'INR', createdAt: nowIso });
-      this.accounts.set(`acc-savings-${primaryUserId}`, { id: `acc-savings-${primaryUserId}`, userId: primaryUserId, name: 'Savings', type: 'savings', openingBalanceMinor: 500000, currencyCode: 'INR', createdAt: nowIso });
-
       // Presence
       this.userPresence.set(primaryUserId, {
         userId: primaryUserId,

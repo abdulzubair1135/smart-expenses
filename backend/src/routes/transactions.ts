@@ -93,17 +93,11 @@ transactionsRouter.post('/', authenticateUser, async (req: AuthenticatedRequest,
 });
 
 // DELETE transaction
-transactionsRouter.delete('/:id', authenticateUser, (req: AuthenticatedRequest, res: Response) => {
+transactionsRouter.delete('/:id', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const id = req.params.id as string;
 
-  const tx = store.transactions.get(id);
-  if (!tx || tx.userId !== userId) {
-    res.status(404).json({ success: false, error: { message: 'Transaction not found or unauthorized' } });
-    return;
-  }
-
-  store.transactions.delete(id);
-  dataAdapter.recordActivity(userId, 'TRANSACTION_DELETED', 'success');
+  await dataAdapter.deleteTransaction(id, userId);
+  await dataAdapter.recordActivity(userId, 'TRANSACTION_DELETED', 'success');
   res.status(200).json({ success: true, message: 'Transaction deleted' });
 });

@@ -36,10 +36,10 @@ public class SessionManager {
     public void saveLoginSession(String token, String userId, String name, String email) {
         prefs.edit()
                 .putBoolean(KEY_IS_LOGGED_IN, true)
-                .putString(KEY_AUTH_TOKEN, token != null ? token : "demo-token-" + userId)
-                .putString(KEY_USER_ID, userId != null ? userId : "usr-default")
-                .putString(KEY_USER_NAME, name != null && !name.trim().isEmpty() ? name : "Divya")
-                .putString(KEY_USER_EMAIL, email != null ? email : "divya@example.com")
+                .putString(KEY_AUTH_TOKEN, token != null ? token : "")
+                .putString(KEY_USER_ID, userId != null ? userId : "")
+                .putString(KEY_USER_NAME, name != null && !name.trim().isEmpty() ? name : "")
+                .putString(KEY_USER_EMAIL, email != null ? email : "")
                 .apply();
     }
 
@@ -48,15 +48,15 @@ public class SessionManager {
     }
 
     public String getUserId() {
-        return prefs.getString(KEY_USER_ID, "d0000000-0000-0000-0000-000000000001");
+        return prefs.getString(KEY_USER_ID, null);
     }
 
     public String getUserName() {
-        return prefs.getString(KEY_USER_NAME, "Divya");
+        return prefs.getString(KEY_USER_NAME, "");
     }
 
     public String getUserEmail() {
-        return prefs.getString(KEY_USER_EMAIL, "divya@example.com");
+        return prefs.getString(KEY_USER_EMAIL, "");
     }
 
     public String getAuthToken() {

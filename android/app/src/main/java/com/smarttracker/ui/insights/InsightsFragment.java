@@ -20,7 +20,6 @@ public class InsightsFragment extends Fragment {
 
     private FragmentInsightsBinding binding;
     private TransactionRepository repository;
-    private static final String DEMO_USER_ID = "d0000000-0000-0000-0000-000000000001";
 
     @Nullable
     @Override

@@ -176,8 +176,6 @@ public class HomeFragment extends Fragment {
             for (com.smarttracker.data.local.entity.AccountEntity acc : currentAccounts) {
                 availableBalanceMinor += acc.openingBalanceMinor;
             }
-        } else {
-            availableBalanceMinor = 1650000; // Base opening balance across accounts: ₹16,500
         }
         long todayExpenseMinor = 0;
         long todayReceivedMinor = 0;

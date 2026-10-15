@@ -47,21 +47,16 @@ export class DataAdapter {
           .eq('user_id', userId)
           .is('archived_at', null);
 
-        if (!error && data && data.length > 0) {
-          const map = new Map<string, Account>();
-          memoryAccounts.forEach(a => map.set(a.id, a));
-          data.forEach(d => {
-            map.set(d.id, {
-              id: d.id,
-              userId: d.user_id,
-              name: d.name,
-              type: d.type,
-              openingBalanceMinor: Number(d.opening_balance_minor),
-              currencyCode: d.currency_code,
-              createdAt: d.created_at
-            });
-          });
-          return Array.from(map.values());
+        if (!error && data) {
+          return data.map(d => ({
+            id: d.id,
+            userId: d.user_id,
+            name: d.name,
+            type: d.type,
+            openingBalanceMinor: Number(d.opening_balance_minor),
+            currencyCode: d.currency_code,
+            createdAt: d.created_at
+          }));
         }
       } catch (e) {
         // Fallback to memory
@@ -126,31 +121,26 @@ export class DataAdapter {
           .is('deleted_at', null)
           .order('transaction_date', { ascending: false });
 
-        if (!error && data && data.length > 0) {
-          const map = new Map<string, Transaction>();
-          memoryTransactions.forEach(t => map.set(t.id, t));
-          data.forEach(t => {
-            map.set(t.id, {
-              id: t.id,
-              userId: t.user_id,
-              accountId: t.account_id,
-              type: t.type,
-              amountMinor: Number(t.amount_minor),
-              currencyCode: t.currency_code,
-              categoryId: t.category_id,
-              description: t.description || '',
-              transactionDate: t.transaction_date,
-              status: t.status,
-              idempotencyKey: t.idempotency_key,
-              relatedPerson: t.related_person,
-              destinationAccountId: t.destination_account_id,
-              expenseGroup: t.expense_group,
-              tripId: t.trip_id,
-              isImportant: t.is_important,
-              createdAt: t.created_at
-            });
-          });
-          return Array.from(map.values());
+        if (!error && data) {
+          return data.map(t => ({
+            id: t.id,
+            userId: t.user_id,
+            accountId: t.account_id,
+            type: t.type,
+            amountMinor: Number(t.amount_minor),
+            currencyCode: t.currency_code,
+            categoryId: t.category_id,
+            description: t.description || '',
+            transactionDate: t.transaction_date,
+            status: t.status,
+            idempotencyKey: t.idempotency_key,
+            relatedPerson: t.related_person,
+            destinationAccountId: t.destination_account_id,
+            expenseGroup: t.expense_group,
+            tripId: t.trip_id,
+            isImportant: t.is_important,
+            createdAt: t.created_at
+          }));
         }
       } catch (e) {
         // Fallback
@@ -245,6 +235,22 @@ export class DataAdapter {
       }
     }
     return tx;
+  }
+
+  async deleteTransaction(txId: string, userId: string): Promise<boolean> {
+    store.transactions.delete(txId);
+    if (isSupabaseConfigured() && supabaseAdmin) {
+      try {
+        await supabaseAdmin
+          .from('transactions')
+          .delete()
+          .eq('id', txId)
+          .eq('user_id', userId);
+      } catch (e) {
+        console.warn('Supabase delete error:', e);
+      }
+    }
+    return true;
   }
 
   // ===================== TRIPS =====================

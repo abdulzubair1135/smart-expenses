@@ -24,7 +24,6 @@ public class MoneyFragment extends Fragment {
 
     private FragmentMoneyBinding binding;
     private TransactionRepository repository;
-    private static final String DEMO_USER_ID = "d0000000-0000-0000-0000-000000000001";
 
     @Nullable
     @Override
@@ -49,6 +48,8 @@ public class MoneyFragment extends Fragment {
 
     private void observeBalances() {
         String userId = com.smarttracker.data.session.SessionManager.getInstance(requireContext()).getUserId();
+        if (userId == null || userId.isEmpty()) return;
+
         repository.getAccountsLive(userId).observe(getViewLifecycleOwner(), accounts -> {
             this.currentAccounts = accounts;
             if (currentTransactions != null) {
@@ -64,10 +65,11 @@ public class MoneyFragment extends Fragment {
     }
 
     private void updateAccountBalances(List<TransactionEntity> transactions) {
-        long cashMinor = 200000;
-        long bankMinor = 800000;
-        long upiMinor = 150000;
-        long savingsMinor = 500000;
+        // Start from 0 — opening balances come from real account records pulled from Supabase
+        long cashMinor = 0;
+        long bankMinor = 0;
+        long upiMinor = 0;
+        long savingsMinor = 0;
 
         if (currentAccounts != null && !currentAccounts.isEmpty()) {
             for (AccountEntity acc : currentAccounts) {
@@ -99,7 +101,19 @@ public class MoneyFragment extends Fragment {
             } else if (accId.contains("savings") || "8e904f50-2677-4520-82b9-32f6986e18f4".equalsIgnoreCase(tx.accountId)) {
                 savingsMinor += effect;
             } else {
-                bankMinor += effect;
+                // Unknown account: try to match by actual account ID from pulled accounts
+                if (currentAccounts != null) {
+                    for (AccountEntity acc : currentAccounts) {
+                        if (acc.id.equals(tx.accountId)) {
+                            String type = acc.type != null ? acc.type.toLowerCase() : "";
+                            if (type.contains("cash")) cashMinor += effect;
+                            else if (type.contains("bank")) bankMinor += effect;
+                            else if (type.contains("upi")) upiMinor += effect;
+                            else if (type.contains("savings")) savingsMinor += effect;
+                            break;
+                        }
+                    }
+                }
             }
         }
 

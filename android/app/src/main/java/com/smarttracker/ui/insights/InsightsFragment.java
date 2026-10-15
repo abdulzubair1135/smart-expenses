@@ -61,10 +61,6 @@ public class InsightsFragment extends Fragment {
             }
         }
 
-        // Add demo base baseline if needed for college presentation (₹25k income, ₹16.5k expense)
-        if (totalReceivedMinor == 0) totalReceivedMinor = 2500000;
-        if (totalExpenseMinor == 0) totalExpenseMinor = 1650000;
-
         long netSavings = totalReceivedMinor - totalExpenseMinor;
 
         if (isAdded()) {

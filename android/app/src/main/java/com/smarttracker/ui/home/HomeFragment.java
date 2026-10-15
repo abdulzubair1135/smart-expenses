@@ -119,10 +119,21 @@ public class HomeFragment extends Fragment {
         binding.tvUserName.setText(sessionManager.getUserName());
     }
 
+    private java.util.List<com.smarttracker.data.local.entity.AccountEntity> currentAccounts = null;
+    private List<TransactionEntity> currentTransactions = null;
+
     public void observeData() {
         String userId = sessionManager.getUserId();
 
+        repository.getAccountsLive(userId).observe(getViewLifecycleOwner(), accounts -> {
+            this.currentAccounts = accounts;
+            if (currentTransactions != null) {
+                computeAndDisplayBalances(currentTransactions);
+            }
+        });
+
         repository.getAllTransactionsLive(userId).observe(getViewLifecycleOwner(), transactions -> {
+            this.currentTransactions = transactions;
             if (transactions != null) {
                 if (transactions.isEmpty()) {
                     binding.rvRecentTransactions.setVisibility(View.GONE);
@@ -160,7 +171,14 @@ public class HomeFragment extends Fragment {
     }
 
     private void computeAndDisplayBalances(List<TransactionEntity> transactions) {
-        long availableBalanceMinor = 1650000; // Base opening balance across accounts: ₹16,500
+        long availableBalanceMinor = 0;
+        if (currentAccounts != null && !currentAccounts.isEmpty()) {
+            for (com.smarttracker.data.local.entity.AccountEntity acc : currentAccounts) {
+                availableBalanceMinor += acc.openingBalanceMinor;
+            }
+        } else {
+            availableBalanceMinor = 1650000; // Base opening balance across accounts: ₹16,500
+        }
         long todayExpenseMinor = 0;
         long todayReceivedMinor = 0;
         long monthExpenseMinor = 0;

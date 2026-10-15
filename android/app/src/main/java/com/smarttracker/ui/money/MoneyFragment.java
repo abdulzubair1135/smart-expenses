@@ -44,9 +44,19 @@ public class MoneyFragment extends Fragment {
         observeBalances();
     }
 
+    private java.util.List<AccountEntity> currentAccounts = null;
+    private java.util.List<TransactionEntity> currentTransactions = null;
+
     private void observeBalances() {
         String userId = com.smarttracker.data.session.SessionManager.getInstance(requireContext()).getUserId();
+        repository.getAccountsLive(userId).observe(getViewLifecycleOwner(), accounts -> {
+            this.currentAccounts = accounts;
+            if (currentTransactions != null) {
+                updateAccountBalances(currentTransactions);
+            }
+        });
         repository.getAllTransactionsLive(userId).observe(getViewLifecycleOwner(), transactions -> {
+            this.currentTransactions = transactions;
             if (transactions != null) {
                 updateAccountBalances(transactions);
             }
@@ -54,11 +64,20 @@ public class MoneyFragment extends Fragment {
     }
 
     private void updateAccountBalances(List<TransactionEntity> transactions) {
-        // Base balances from initial seed: Cash ₹2,000, Bank ₹8,000, UPI ₹1,500, Savings ₹5,000
         long cashMinor = 200000;
         long bankMinor = 800000;
         long upiMinor = 150000;
         long savingsMinor = 500000;
+
+        if (currentAccounts != null && !currentAccounts.isEmpty()) {
+            for (AccountEntity acc : currentAccounts) {
+                String type = acc.type != null ? acc.type.toLowerCase() : "";
+                if (type.contains("cash")) cashMinor = acc.openingBalanceMinor;
+                else if (type.contains("bank")) bankMinor = acc.openingBalanceMinor;
+                else if (type.contains("upi")) upiMinor = acc.openingBalanceMinor;
+                else if (type.contains("savings")) savingsMinor = acc.openingBalanceMinor;
+            }
+        }
 
         for (TransactionEntity tx : transactions) {
             if (!"completed".equalsIgnoreCase(tx.status)) continue;
@@ -70,14 +89,17 @@ public class MoneyFragment extends Fragment {
                 effect = tx.amountMinor;
             }
 
-            if ("acc_cash".equalsIgnoreCase(tx.accountId)) {
+            String accId = tx.accountId != null ? tx.accountId.toLowerCase() : "";
+            if (accId.contains("cash") || "6d6badcf-b4d0-4f29-b0ea-3f4a42b6daf1".equalsIgnoreCase(tx.accountId)) {
                 cashMinor += effect;
-            } else if ("acc_bank".equalsIgnoreCase(tx.accountId)) {
+            } else if (accId.contains("bank") || "76de6e02-5f6d-49cc-959f-b56d10f6d29b".equalsIgnoreCase(tx.accountId)) {
                 bankMinor += effect;
-            } else if ("acc_upi".equalsIgnoreCase(tx.accountId)) {
+            } else if (accId.contains("upi") || "445bd17b-e290-4838-bc6a-764748b88251".equalsIgnoreCase(tx.accountId)) {
                 upiMinor += effect;
-            } else if ("acc_savings".equalsIgnoreCase(tx.accountId)) {
+            } else if (accId.contains("savings") || "8e904f50-2677-4520-82b9-32f6986e18f4".equalsIgnoreCase(tx.accountId)) {
                 savingsMinor += effect;
+            } else {
+                bankMinor += effect;
             }
         }
 

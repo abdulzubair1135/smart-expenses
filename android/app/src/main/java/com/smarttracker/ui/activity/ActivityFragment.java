@@ -325,29 +325,11 @@ public class ActivityFragment extends Fragment {
     }
 
     private void showTransactionOptionsDialog(TransactionEntity transaction) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        builder.setTitle("Transaction Details");
-        String details = String.format("Description: %s\nAmount: %s\nType: %s\nGroup: %s\nStatus: %s\nDate: %s\nOffline Synced: %s",
-                transaction.description,
-                FinancialEngine.formatMinorToSimpleINR(transaction.amountMinor),
-                transaction.type.toUpperCase(),
-                transaction.expenseGroup != null ? transaction.expenseGroup : "GENERAL",
-                transaction.status,
-                transaction.transactionDate != null ? transaction.transactionDate.substring(0, Math.min(10, transaction.transactionDate.length())) : "",
-                transaction.isSynced ? "Yes" : "Pending");
-
-        if (transaction.isImportant) {
-            details += "\n⭐ Marked as Special / Emergency";
-        }
-        if (transaction.tripId != null) {
-            details += "\n✈️ Trip Linked";
-        }
-
-        builder.setMessage(details);
-        builder.setNegativeButton("Delete", (dialog, which) -> {
-            repository.deleteTransaction(transaction.id);
-        });
-        builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
-        builder.show();
+        if (transaction == null || getChildFragmentManager().isStateSaved()) return;
+        com.smarttracker.ui.common.TransactionDetailBottomSheet sheet =
+                com.smarttracker.ui.common.TransactionDetailBottomSheet.newInstance(transaction, id -> {
+                    repository.deleteTransaction(id);
+                });
+        sheet.show(getChildFragmentManager(), "TransactionDetailBottomSheet");
     }
 }

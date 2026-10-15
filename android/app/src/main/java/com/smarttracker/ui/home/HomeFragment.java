@@ -236,19 +236,11 @@ public class HomeFragment extends Fragment {
     }
 
     private void showTransactionOptionsDialog(TransactionEntity transaction) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        builder.setTitle("Transaction Details");
-        builder.setMessage(String.format("Description: %s\nAmount: %s\nType: %s\nStatus: %s\nOffline Synced: %s",
-                transaction.description,
-                FinancialEngine.formatMinorToSimpleINR(transaction.amountMinor),
-                transaction.type.toUpperCase(),
-                transaction.status,
-                transaction.isSynced ? "Yes" : "Pending"));
-
-        builder.setNegativeButton("Delete", (dialog, which) -> {
-            repository.deleteTransaction(transaction.id);
-        });
-        builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
-        builder.show();
+        if (transaction == null || getChildFragmentManager().isStateSaved()) return;
+        com.smarttracker.ui.common.TransactionDetailBottomSheet sheet =
+                com.smarttracker.ui.common.TransactionDetailBottomSheet.newInstance(transaction, id -> {
+                    repository.deleteTransaction(id);
+                });
+        sheet.show(getChildFragmentManager(), "TransactionDetailBottomSheet");
     }
 }

@@ -233,73 +233,43 @@ export class MemoryStore {
       this.activeTokens.add(`demo-user-${primaryUserId}`);
       this.activeTokens.add(primaryUserId);
 
-      // Accounts for Abdul
-      this.accounts.set(`acc-cash-${primaryUserId}`, { id: `acc-cash-${primaryUserId}`, userId: primaryUserId, name: 'Cash In Hand', type: 'cash', openingBalanceMinor: 500000, currencyCode: 'INR', createdAt: nowIso });
-      this.accounts.set(`acc-bank-${primaryUserId}`, { id: `acc-bank-${primaryUserId}`, userId: primaryUserId, name: 'HDFC Bank', type: 'bank', openingBalanceMinor: 1000000, currencyCode: 'INR', createdAt: nowIso });
-      this.accounts.set(`acc-upi-${primaryUserId}`, { id: `acc-upi-${primaryUserId}`, userId: primaryUserId, name: 'Google Pay UPI', type: 'upi', openingBalanceMinor: 150000, currencyCode: 'INR', createdAt: nowIso });
+      // Real Accounts for Abdul from APK (Total: ₹ 16,500.00)
+      this.accounts.set(`acc-cash-${primaryUserId}`, { id: `acc-cash-${primaryUserId}`, userId: primaryUserId, name: 'Cash', type: 'cash', openingBalanceMinor: 200000, currencyCode: 'INR', createdAt: nowIso });
+      this.accounts.set(`acc-bank-${primaryUserId}`, { id: `acc-bank-${primaryUserId}`, userId: primaryUserId, name: 'Bank', type: 'bank', openingBalanceMinor: 800000, currencyCode: 'INR', createdAt: nowIso });
+      this.accounts.set(`acc-upi-${primaryUserId}`, { id: `acc-upi-${primaryUserId}`, userId: primaryUserId, name: 'UPI', type: 'upi', openingBalanceMinor: 150000, currencyCode: 'INR', createdAt: nowIso });
+      this.accounts.set(`acc-savings-${primaryUserId}`, { id: `acc-savings-${primaryUserId}`, userId: primaryUserId, name: 'Savings', type: 'savings', openingBalanceMinor: 500000, currencyCode: 'INR', createdAt: nowIso });
 
-      // Financial Transactions for Abdul (Amount, Time, Description, Category)
-      const d = new Date();
-      const todayTime = new Date(d.getTime() - 2 * 60 * 60 * 1000).toISOString();
-      const yestTime = new Date(d.getTime() - 26 * 60 * 60 * 1000).toISOString();
-      const twoDaysAgoTime = new Date(d.getTime() - 50 * 60 * 60 * 1000).toISOString();
-      const firstOfMonthTime = new Date(d.getFullYear(), d.getMonth(), 1, 10, 30).toISOString();
+      // Real Financial Transactions from Android APK
+      const realAppTxs = [
+        { id: 'tx-real-1', type: 'received', amountMinor: 656500, acc: `acc-cash-${primaryUserId}`, cat: 'cat-salary', desc: 'Salary / Gift', date: '2026-10-13T23:18:25.000Z' },
+        { id: 'tx-real-2', type: 'expense', amountMinor: 4000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-others', desc: 'Daily Expense', date: '2026-10-14T12:00:00.000Z' },
+        { id: 'tx-real-3', type: 'expense', amountMinor: 5000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-others', desc: 'Daily Expense', date: '2026-10-14T12:00:00.000Z' },
+        { id: 'tx-real-4', type: 'received', amountMinor: 4000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-salary', desc: 'Earnings', date: '2026-10-14T12:00:00.000Z' },
+        { id: 'tx-real-5', type: 'received', amountMinor: 1000000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-salary', desc: 'Earnings', date: '2026-10-14T12:00:00.000Z' },
+        { id: 'tx-real-6', type: 'received', amountMinor: 2000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-salary', desc: 'Earnings', date: '2026-10-14T12:00:00.000Z' },
+        { id: 'tx-real-7', type: 'received', amountMinor: 4000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-salary', desc: 'Earnings', date: '2026-10-14T12:00:00.000Z' },
+        { id: 'tx-real-8', type: 'received', amountMinor: 15000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-salary', desc: 'Earnings', date: '2026-10-14T12:00:00.000Z' },
+        { id: 'tx-real-9', type: 'lend', amountMinor: 50000, acc: `acc-upi-${primaryUserId}`, cat: null, desc: 'Rohan - Udhar Diye', rel: 'Rohan', date: '2026-10-14T12:00:00.000Z' },
+        { id: 'tx-real-10', type: 'expense', amountMinor: 25000, acc: `acc-upi-${primaryUserId}`, cat: 'cat-food', desc: 'Food - Expense', date: '2026-10-13T12:30:00.000Z' },
+        { id: 'tx-real-11', type: 'received', amountMinor: 50000, acc: `acc-cash-${primaryUserId}`, cat: null, desc: 'Rahul - Received', rel: 'Rahul', date: '2026-10-13T11:45:00.000Z' }
+      ];
 
-      this.transactions.set(`tx-abdul-1`, {
-        id: `tx-abdul-1`,
-        userId: primaryUserId,
-        accountId: `acc-upi-${primaryUserId}`,
-        type: 'expense',
-        amountMinor: 45000, // ₹ 450.00
-        currencyCode: 'INR',
-        categoryId: 'cat-food',
-        description: 'Lunch & Tea with College Friends',
-        transactionDate: todayTime,
-        status: 'completed',
-        createdAt: todayTime
-      });
-
-      this.transactions.set(`tx-abdul-2`, {
-        id: `tx-abdul-2`,
-        userId: primaryUserId,
-        accountId: `acc-bank-${primaryUserId}`,
-        type: 'expense',
-        amountMinor: 120000, // ₹ 1,200.00
-        currencyCode: 'INR',
-        categoryId: 'cat-bills',
-        description: 'Electricity Bill Payment',
-        transactionDate: yestTime,
-        status: 'completed',
-        createdAt: yestTime
-      });
-
-      this.transactions.set(`tx-abdul-3`, {
-        id: `tx-abdul-3`,
-        userId: primaryUserId,
-        accountId: `acc-upi-${primaryUserId}`,
-        type: 'expense',
-        amountMinor: 35000, // ₹ 350.00
-        currencyCode: 'INR',
-        categoryId: 'cat-travel',
-        description: 'Metro & Auto Fare to City Center',
-        transactionDate: twoDaysAgoTime,
-        status: 'completed',
-        createdAt: twoDaysAgoTime
-      });
-
-      this.transactions.set(`tx-abdul-4`, {
-        id: `tx-abdul-4`,
-        userId: primaryUserId,
-        accountId: `acc-bank-${primaryUserId}`,
-        type: 'received',
-        amountMinor: 2500000, // ₹ 25,000.00
-        currencyCode: 'INR',
-        categoryId: 'cat-salary',
-        description: 'Monthly Stipend / Salary',
-        transactionDate: firstOfMonthTime,
-        status: 'completed',
-        createdAt: firstOfMonthTime
-      });
+      for (const t of realAppTxs) {
+        this.transactions.set(t.id, {
+          id: t.id,
+          userId: primaryUserId,
+          accountId: t.acc,
+          type: t.type as any,
+          amountMinor: t.amountMinor,
+          currencyCode: 'INR',
+          categoryId: t.cat,
+          description: t.desc,
+          relatedPerson: (t as any).rel || null,
+          transactionDate: t.date,
+          status: 'completed',
+          createdAt: t.date
+        });
+      }
 
       // Presence
       this.userPresence.set(primaryUserId, {

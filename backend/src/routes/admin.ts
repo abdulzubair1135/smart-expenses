@@ -257,10 +257,18 @@ adminRouter.get('/users/:id/transactions', authenticateAdmin, async (req, res) =
   // 2. Fetch from Supabase PostgreSQL
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
+      let targetUserId = userId;
+      if (userId.startsWith('usr-') || !userId.includes('-')) {
+        const { data: prof } = await supabaseAdmin.from('profiles').select('id').eq('email', 'abdulzubair221@gmail.com').maybeSingle();
+        if (prof?.id) {
+          targetUserId = prof.id;
+        }
+      }
+
       const { data: dbTxs } = await supabaseAdmin
         .from('transactions')
         .select('*, categories(name, icon_key, color_hex), accounts(name, type)')
-        .eq('user_id', userId)
+        .or(`user_id.eq.${userId},user_id.eq.${targetUserId}`)
         .order('transaction_date', { ascending: false });
 
       if (dbTxs && dbTxs.length > 0) {

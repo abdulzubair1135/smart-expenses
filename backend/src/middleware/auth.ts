@@ -27,14 +27,14 @@ export const authenticateUser = (req: AuthenticatedRequest, res: Response, next:
 
   const token = authHeader.split(' ')[1];
 
-  // In test/demo environment or mock mode: support demo tokens or decoded JWTs
-  if (token === 'demo-test-token' || token.startsWith('demo-user-') || token.startsWith('demo-token-')) {
+  // In test/demo environment or mock mode: support demo tokens, token- or decoded JWTs
+  if (token === 'demo-test-token' || token.startsWith('demo-user-') || token.startsWith('demo-token-') || token.startsWith('token-')) {
     const userId = token === 'demo-test-token' 
       ? 'd0000000-0000-0000-0000-000000000001' 
-      : token.replace('demo-user-', '').replace('demo-token-', '');
+      : token.replace('demo-user-', '').replace('demo-token-', '').replace('token-', '');
     req.user = {
       id: userId,
-      email: 'divya@example.com',
+      email: 'user@example.com',
       role: 'user'
     };
     next();

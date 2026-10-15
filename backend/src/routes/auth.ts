@@ -7,7 +7,7 @@ import { supabaseAdmin, isSupabaseConfigured } from '../services/supabase';
 export const authRouter = Router();
 
 // Register new user with Terms & Privacy Policy consent validation
-authRouter.post('/register', (req, res) => {
+authRouter.post('/register', async (req, res) => {
   const { name, email, password, confirmPassword, termsAccepted } = req.body;
 
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -39,20 +39,52 @@ authRouter.post('/register', (req, res) => {
   }
 
   // Duplicate email check
+  const normalizedEmail = email.trim().toLowerCase();
   const existing = Array.from(store.profiles.values()).find(
-    p => p.email.toLowerCase() === email.trim().toLowerCase()
+    p => p.email.toLowerCase() === normalizedEmail
   );
   if (existing) {
     res.status(409).json({ success: false, error: { message: 'An account with this email already exists' } });
     return;
   }
 
-  const newId = `usr-${Date.now()}`;
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data: dbExisting } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+      if (dbExisting) {
+        res.status(409).json({ success: false, error: { message: 'An account with this email already exists' } });
+        return;
+      }
+    } catch (e) {
+      console.warn('Error checking existing email in Supabase:', e);
+    }
+  }
+
+  let newId: string = crypto.randomUUID();
   const nowIso = new Date().toISOString();
+
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data: authUser } = await supabaseAdmin.auth.admin.createUser({
+        email: normalizedEmail,
+        password: password,
+        email_confirm: true
+      });
+      if (authUser?.user?.id) {
+        newId = authUser.user.id;
+      }
+    } catch (e) {
+      console.warn('Could not create auth user in Supabase:', e);
+    }
+  }
 
   const newProfile: Profile = {
     id: newId,
-    email: email.trim().toLowerCase(),
+    email: normalizedEmail,
     displayName: name.trim(),
     accountStatus: 'verified',
     termsConsent: {
@@ -66,10 +98,10 @@ authRouter.post('/register', (req, res) => {
   store.profiles.set(newId, newProfile);
   store.passwords.set(newId, password);
   
-  const token = `demo-user-${newId}`;
+  const token = `token-${newId}`;
   store.activeTokens.add(token);
 
-  // Initialize basic default accounts for the new user
+  // Initialize basic default accounts for the new user in memory
   store.accounts.set(`acc-cash-${newId}`, {
     id: `acc-cash-${newId}`,
     userId: newId,
@@ -79,6 +111,32 @@ authRouter.post('/register', (req, res) => {
     currencyCode: 'INR',
     createdAt: nowIso
   });
+
+  // Persist new user and accounts to Supabase PostgreSQL
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      await supabaseAdmin.from('profiles').upsert({
+        id: newId,
+        display_name: name.trim(),
+        email: normalizedEmail,
+        account_status: 'verified',
+        terms_accepted: true,
+        terms_version: '2026.1',
+        created_at: nowIso,
+        updated_at: nowIso
+      });
+
+      const defaultAccounts = [
+        { id: crypto.randomUUID(), user_id: newId, name: 'Cash', type: 'cash', opening_balance_minor: 0, currency_code: 'INR' },
+        { id: crypto.randomUUID(), user_id: newId, name: 'Bank Account', type: 'bank', opening_balance_minor: 0, currency_code: 'INR' },
+        { id: crypto.randomUUID(), user_id: newId, name: 'UPI Wallet', type: 'upi', opening_balance_minor: 0, currency_code: 'INR' },
+        { id: crypto.randomUUID(), user_id: newId, name: 'Savings', type: 'savings', opening_balance_minor: 0, currency_code: 'INR' }
+      ];
+      await supabaseAdmin.from('accounts').insert(defaultAccounts);
+    } catch (e) {
+      console.warn('Could not persist new user/accounts to Supabase:', e);
+    }
+  }
 
   store.recordActivity(newId, 'ACCOUNT_REGISTERED', 'success');
   store.updatePresence(newId, 'android');

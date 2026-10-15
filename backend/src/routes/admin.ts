@@ -239,7 +239,30 @@ adminRouter.patch('/users/:id/status', authenticateAdmin, async (req, res) => {
     return;
   }
 
-  const profile = store.profiles.get(id);
+  let profile = store.profiles.get(id);
+  if (!profile && isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data: dbProf } = await supabaseAdmin.from('profiles').select('*').eq('id', id).maybeSingle();
+      if (dbProf) {
+        profile = {
+          id: dbProf.id,
+          email: dbProf.email,
+          displayName: dbProf.display_name || 'User',
+          accountStatus: dbProf.account_status || 'verified',
+          termsConsent: {
+            termsVersion: dbProf.terms_version || '2026.1',
+            privacyVersion: '2026.1',
+            consentedAt: dbProf.created_at || new Date().toISOString()
+          },
+          createdAt: dbProf.created_at
+        };
+        store.profiles.set(dbProf.id, profile);
+      }
+    } catch (e) {
+      console.warn('Could not query Supabase profile for status update:', e);
+    }
+  }
+
   if (!profile) {
     res.status(404).json({ success: false, error: { message: 'User not found' } });
     return;
@@ -247,6 +270,14 @@ adminRouter.patch('/users/:id/status', authenticateAdmin, async (req, res) => {
 
   const oldStatus = profile.accountStatus;
   profile.accountStatus = status;
+
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      await supabaseAdmin.from('profiles').update({ account_status: status }).eq('id', id);
+    } catch (e) {
+      console.warn('Could not update Supabase profile status:', e);
+    }
+  }
 
   // Log to audit log
   await recordAdminAuditLog(
@@ -464,6 +495,14 @@ adminRouter.get('/users/:id/transactions', authenticateAdmin, async (req, res) =
       totalSpentFormatted: `₹ ${(totalSpentMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       totalReceivedMinor,
       totalReceivedFormatted: `₹ ${(totalReceivedMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      summary: {
+        totalIncomeMinor: totalReceivedMinor,
+        totalIncomeFormatted: `₹ ${(totalReceivedMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        totalExpenseMinor: totalSpentMinor,
+        totalExpenseFormatted: `₹ ${(totalSpentMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        netSavingsMinor: totalReceivedMinor - totalSpentMinor,
+        netSavingsFormatted: `₹ ${((totalReceivedMinor - totalSpentMinor) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      },
       transactions: sortedTransactions
     }
   });

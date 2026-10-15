@@ -214,7 +214,7 @@ export class MemoryStore {
     defaultCats.forEach(c => this.categories.set(c.id, c));
 
     // 2. Real application primary user profile (persisted across restarts)
-    const primaryUserId = 'usr-1792013588384';
+    const primaryUserId = '0034a254-3972-4509-ac85-8f9172574ca4';
     if (!this.profiles.has(primaryUserId)) {
       const nowIso = new Date().toISOString();
       this.profiles.set(primaryUserId, {

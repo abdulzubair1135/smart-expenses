@@ -21,21 +21,27 @@ async function getAllAdminProfiles(): Promise<Profile[]> {
       const { data: remoteProfiles } = await supabaseAdmin.from('profiles').select('*');
       if (remoteProfiles && remoteProfiles.length > 0) {
         for (const rp of remoteProfiles) {
-          if (!profileMap.has(rp.id)) {
-            profileMap.set(rp.id, {
-              id: rp.id,
-              email: rp.email || '',
-              displayName: rp.display_name || 'User',
-              accountStatus: rp.account_status || 'verified',
-              termsConsent: {
-                termsVersion: rp.terms_version || '2026.1',
-                privacyVersion: '2026.1',
-                consentedAt: rp.created_at || new Date().toISOString()
-              },
-              lastLoginAt: rp.last_login_at,
-              createdAt: rp.created_at
-            });
+          // If a local store profile shares this email, replace it so we never display duplicates
+          if (rp.email) {
+            for (const [key, val] of profileMap.entries()) {
+              if (val.email && val.email.toLowerCase() === rp.email.toLowerCase() && key !== rp.id) {
+                profileMap.delete(key);
+              }
+            }
           }
+          profileMap.set(rp.id, {
+            id: rp.id,
+            email: rp.email || '',
+            displayName: rp.display_name || 'User',
+            accountStatus: rp.account_status || 'verified',
+            termsConsent: {
+              termsVersion: rp.terms_version || '2026.1',
+              privacyVersion: '2026.1',
+              consentedAt: rp.created_at || new Date().toISOString()
+            },
+            lastLoginAt: rp.last_login_at,
+            createdAt: rp.created_at
+          });
         }
       }
     } catch (e) {
@@ -257,19 +263,22 @@ adminRouter.get('/users/:id/transactions', authenticateAdmin, async (req, res) =
   // 2. Fetch from Supabase PostgreSQL
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
-      let targetUserId = userId;
-      if (userId.startsWith('usr-') || !userId.includes('-')) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      let targetUserId = isUuid.test(userId) ? userId : null;
+
+      if (!targetUserId) {
         const { data: prof } = await supabaseAdmin.from('profiles').select('id').eq('email', 'abdulzubair221@gmail.com').maybeSingle();
         if (prof?.id) {
           targetUserId = prof.id;
         }
       }
 
-      const { data: dbTxs } = await supabaseAdmin
-        .from('transactions')
-        .select('*, categories(name, icon_key, color_hex), accounts(name, type)')
-        .or(`user_id.eq.${userId},user_id.eq.${targetUserId}`)
-        .order('transaction_date', { ascending: false });
+      if (targetUserId) {
+        const { data: dbTxs } = await supabaseAdmin
+          .from('transactions')
+          .select('*, categories(name, icon_key, color_hex), accounts:accounts!transactions_account_id_fkey(name, type)')
+          .eq('user_id', targetUserId)
+          .order('transaction_date', { ascending: false });
 
       if (dbTxs && dbTxs.length > 0) {
         for (const tx of dbTxs) {
@@ -296,7 +305,8 @@ adminRouter.get('/users/:id/transactions', authenticateAdmin, async (req, res) =
           });
         }
       }
-    } catch (e) {
+    }
+  } catch (e) {
       console.warn('Could not load Supabase transactions for admin:', e);
     }
   }

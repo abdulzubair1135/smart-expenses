@@ -281,6 +281,7 @@ adminRouter.get('/users/:id/transactions', authenticateAdmin, async (req, res) =
           .order('transaction_date', { ascending: false });
 
       if (dbTxs && dbTxs.length > 0) {
+        txMap.clear(); // Supabase PostgreSQL is primary source of truth - clear fallback to prevent duplicate records
         for (const tx of dbTxs) {
           const cat = tx.categories;
           const acc = tx.accounts;

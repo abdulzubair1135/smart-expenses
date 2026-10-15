@@ -233,6 +233,74 @@ export class MemoryStore {
       this.activeTokens.add(`demo-user-${primaryUserId}`);
       this.activeTokens.add(primaryUserId);
 
+      // Accounts for Abdul
+      this.accounts.set(`acc-cash-${primaryUserId}`, { id: `acc-cash-${primaryUserId}`, userId: primaryUserId, name: 'Cash In Hand', type: 'cash', openingBalanceMinor: 500000, currencyCode: 'INR', createdAt: nowIso });
+      this.accounts.set(`acc-bank-${primaryUserId}`, { id: `acc-bank-${primaryUserId}`, userId: primaryUserId, name: 'HDFC Bank', type: 'bank', openingBalanceMinor: 1000000, currencyCode: 'INR', createdAt: nowIso });
+      this.accounts.set(`acc-upi-${primaryUserId}`, { id: `acc-upi-${primaryUserId}`, userId: primaryUserId, name: 'Google Pay UPI', type: 'upi', openingBalanceMinor: 150000, currencyCode: 'INR', createdAt: nowIso });
+
+      // Financial Transactions for Abdul (Amount, Time, Description, Category)
+      const d = new Date();
+      const todayTime = new Date(d.getTime() - 2 * 60 * 60 * 1000).toISOString();
+      const yestTime = new Date(d.getTime() - 26 * 60 * 60 * 1000).toISOString();
+      const twoDaysAgoTime = new Date(d.getTime() - 50 * 60 * 60 * 1000).toISOString();
+      const firstOfMonthTime = new Date(d.getFullYear(), d.getMonth(), 1, 10, 30).toISOString();
+
+      this.transactions.set(`tx-abdul-1`, {
+        id: `tx-abdul-1`,
+        userId: primaryUserId,
+        accountId: `acc-upi-${primaryUserId}`,
+        type: 'expense',
+        amountMinor: 45000, // ₹ 450.00
+        currencyCode: 'INR',
+        categoryId: 'cat-food',
+        description: 'Lunch & Tea with College Friends',
+        transactionDate: todayTime,
+        status: 'completed',
+        createdAt: todayTime
+      });
+
+      this.transactions.set(`tx-abdul-2`, {
+        id: `tx-abdul-2`,
+        userId: primaryUserId,
+        accountId: `acc-bank-${primaryUserId}`,
+        type: 'expense',
+        amountMinor: 120000, // ₹ 1,200.00
+        currencyCode: 'INR',
+        categoryId: 'cat-bills',
+        description: 'Electricity Bill Payment',
+        transactionDate: yestTime,
+        status: 'completed',
+        createdAt: yestTime
+      });
+
+      this.transactions.set(`tx-abdul-3`, {
+        id: `tx-abdul-3`,
+        userId: primaryUserId,
+        accountId: `acc-upi-${primaryUserId}`,
+        type: 'expense',
+        amountMinor: 35000, // ₹ 350.00
+        currencyCode: 'INR',
+        categoryId: 'cat-travel',
+        description: 'Metro & Auto Fare to City Center',
+        transactionDate: twoDaysAgoTime,
+        status: 'completed',
+        createdAt: twoDaysAgoTime
+      });
+
+      this.transactions.set(`tx-abdul-4`, {
+        id: `tx-abdul-4`,
+        userId: primaryUserId,
+        accountId: `acc-bank-${primaryUserId}`,
+        type: 'received',
+        amountMinor: 2500000, // ₹ 25,000.00
+        currencyCode: 'INR',
+        categoryId: 'cat-salary',
+        description: 'Monthly Stipend / Salary',
+        transactionDate: firstOfMonthTime,
+        status: 'completed',
+        createdAt: firstOfMonthTime
+      });
+
       // Presence
       this.userPresence.set(primaryUserId, {
         userId: primaryUserId,
@@ -242,8 +310,10 @@ export class MemoryStore {
         updatedAt: nowIso
       });
 
-      // Operational Activity (Zero-Knowledge Privacy Wall Preserved)
+      // Operational Activity
       this.recordActivity(primaryUserId, 'ACCOUNT_VERIFIED', 'success');
+      this.recordActivity(primaryUserId, 'TRANSACTION_RECORDED', 'success', { description: 'Electricity Bill Payment', amount: '₹ 1,200.00' });
+      this.recordActivity(primaryUserId, 'TRANSACTION_RECORDED', 'success', { description: 'Lunch & Tea with College Friends', amount: '₹ 450.00' });
       this.recordActivity(primaryUserId, 'SESSION_INITIALIZED', 'success');
     }
 

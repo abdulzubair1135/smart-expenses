@@ -123,3 +123,33 @@ export interface ServiceHealth {
     syncFailuresCount: number;
   };
 }
+
+export interface UserTransaction {
+  id: string;
+  userId: string;
+  type: 'expense' | 'received' | 'lend' | 'borrow' | 'transfer';
+  amountMinor: number;
+  amountFormatted: string;
+  currencyCode: string;
+  categoryName: string;
+  categoryIcon: string;
+  categoryColor: string;
+  accountName: string;
+  accountType: string;
+  description: string;
+  transactionDate: string;
+  status: string;
+  relatedPerson: string | null;
+  createdAt: string;
+}
+
+export interface UserTransactionLedger {
+  userId: string;
+  totalCount: number;
+  totalSpentMinor: number;
+  totalSpentFormatted: string;
+  totalReceivedMinor: number;
+  totalReceivedFormatted: string;
+  transactions: UserTransaction[];
+}
+

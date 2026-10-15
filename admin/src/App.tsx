@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from './services/api';
 import { 
   AdminMetrics, UserProfile, AuditLog, ActivityEvent, 
-  MonitoringSummary, MonitoringEvent, MonitoringHistory, ServiceHealth 
+  MonitoringSummary, MonitoringEvent, MonitoringHistory, ServiceHealth,
+  UserTransactionLedger
 } from './types';
 import { 
   Users, Activity, ShieldCheck, Database, CheckCircle, 
   AlertTriangle, RefreshCw, LogOut, Search, Cpu,
-  Lock, X, Filter, Eye, Server, Radio
+  Lock, X, Filter, Eye, Server, Radio, Receipt, ArrowDownRight, ArrowUpRight
 } from 'lucide-react';
 
 export default function App() {
@@ -42,6 +43,12 @@ export default function App() {
   const [selectedUserForActivity, setSelectedUserForActivity] = useState<UserProfile | null>(null);
   const [userActivities, setUserActivities] = useState<ActivityEvent[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
+
+  // User transaction ledger state
+  const [selectedUserForLedger, setSelectedUserForLedger] = useState<UserProfile | null>(null);
+  const [userLedger, setUserLedger] = useState<UserTransactionLedger | null>(null);
+  const [loadingLedger, setLoadingLedger] = useState(false);
+  const [ledgerSearch, setLedgerSearch] = useState('');
 
   const loadData = async (key: string) => {
     try {
@@ -136,6 +143,20 @@ export default function App() {
       alert('Error fetching user activity: ' + e.message);
     } finally {
       setLoadingActivity(false);
+    }
+  };
+
+  const handleViewLedger = async (user: UserProfile) => {
+    try {
+      setSelectedUserForLedger(user);
+      setLoadingLedger(true);
+      setLedgerSearch('');
+      const ledger = await adminApi.getUserTransactions(adminKey, user.id);
+      setUserLedger(ledger);
+    } catch (e: any) {
+      alert('Error fetching user transaction history: ' + e.message);
+    } finally {
+      setLoadingLedger(false);
     }
   };
 
@@ -653,12 +674,20 @@ export default function App() {
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
                     <td className="p-4 text-right">
-                      <button
-                        onClick={() => handleViewActivity(u)}
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition"
-                      >
-                        Activity Log
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleViewLedger(u)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
+                        >
+                          <Receipt className="w-3.5 h-3.5" /> Financial Ledger
+                        </button>
+                        <button
+                          onClick={() => handleViewActivity(u)}
+                          className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition"
+                        >
+                          Activity
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1003,6 +1032,173 @@ export default function App() {
               <div className="pt-2 text-right">
                 <button
                   onClick={() => setSelectedUserForActivity(null)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* USER FINANCIAL HISTORY & TRANSACTION LEDGER MODAL */}
+        {selectedUserForLedger && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-4xl w-full p-6 space-y-5 shadow-2xl max-h-[90vh] flex flex-col">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+                    <Receipt className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">User Financial History & Detailed Ledger</h3>
+                    <p className="text-xs text-gray-500">
+                      Account: <strong>{selectedUserForLedger.displayName}</strong> ({selectedUserForLedger.email}) &bull; <span className="font-mono">{selectedUserForLedger.id}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedUserForLedger(null)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Summary Metric Cards */}
+              {userLedger && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                    <span className="text-[11px] font-semibold uppercase text-gray-400">Total Transactions</span>
+                    <div className="text-2xl font-bold text-gray-900 mt-1">{userLedger.totalCount} entries</div>
+                  </div>
+
+                  <div className="p-4 bg-red-50/50 border border-red-200 rounded-xl">
+                    <div className="flex items-center justify-between text-[11px] font-semibold uppercase text-red-500">
+                      <span>Total Spent (Expenses)</span>
+                      <ArrowDownRight className="w-4 h-4" />
+                    </div>
+                    <div className="text-2xl font-bold text-red-600 mt-1">{userLedger.totalSpentFormatted}</div>
+                  </div>
+
+                  <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-xl">
+                    <div className="flex items-center justify-between text-[11px] font-semibold uppercase text-emerald-600">
+                      <span>Total Income Received</span>
+                      <ArrowUpRight className="w-4 h-4" />
+                    </div>
+                    <div className="text-2xl font-bold text-emerald-600 mt-1">{userLedger.totalReceivedFormatted}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Search & Filter Bar */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search by amount, description, category or account..."
+                    value={ledgerSearch}
+                    onChange={(e) => setLedgerSearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <button
+                  onClick={() => handleViewLedger(selectedUserForLedger)}
+                  disabled={loadingLedger}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingLedger ? 'animate-spin' : ''}`} /> Refresh
+                </button>
+              </div>
+
+              {/* Transactions Ledger Table */}
+              <div className="flex-1 overflow-y-auto border border-gray-200 rounded-xl">
+                {loadingLedger ? (
+                  <div className="p-12 text-center text-gray-400 flex items-center justify-center gap-2">
+                    <RefreshCw className="w-5 h-5 animate-spin" /> Loading full financial ledger...
+                  </div>
+                ) : !userLedger || userLedger.transactions.length === 0 ? (
+                  <div className="p-12 text-center text-gray-400 text-xs">
+                    No transactions recorded for this user yet.
+                  </div>
+                ) : (
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-gray-50 text-gray-500 font-semibold uppercase border-b sticky top-0">
+                      <tr>
+                        <th className="p-3">Date & Time</th>
+                        <th className="p-3">Type</th>
+                        <th className="p-3">Description (Kya Dala Tha)</th>
+                        <th className="p-3">Category</th>
+                        <th className="p-3">Account</th>
+                        <th className="p-3 text-right">Amount (Kitna Dala Tha)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {userLedger.transactions
+                        .filter(t => {
+                          if (!ledgerSearch.trim()) return true;
+                          const q = ledgerSearch.toLowerCase();
+                          return (
+                            t.description.toLowerCase().includes(q) ||
+                            t.categoryName.toLowerCase().includes(q) ||
+                            t.accountName.toLowerCase().includes(q) ||
+                            t.amountFormatted.toLowerCase().includes(q) ||
+                            t.type.toLowerCase().includes(q)
+                          );
+                        })
+                        .map((t) => (
+                          <tr key={t.id} className="hover:bg-gray-50/60 transition">
+                            <td className="p-3 whitespace-nowrap text-gray-500 font-mono">
+                              <div>{new Date(t.transactionDate).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                              <div className="text-[10px] text-gray-400">{new Date(t.transactionDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                            </td>
+
+                            <td className="p-3 whitespace-nowrap">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                t.type === 'expense' ? 'bg-rose-100 text-rose-800' :
+                                t.type === 'received' ? 'bg-emerald-100 text-emerald-800' :
+                                'bg-blue-100 text-blue-800'
+                              }`}>
+                                {t.type}
+                              </span>
+                            </td>
+
+                            <td className="p-3 max-w-xs">
+                              <div className="font-medium text-gray-900">{t.description}</div>
+                              {t.relatedPerson && (
+                                <div className="text-[10px] text-gray-400">Related: {t.relatedPerson}</div>
+                              )}
+                            </td>
+
+                            <td className="p-3 whitespace-nowrap">
+                              <span className="px-2 py-1 rounded-lg bg-gray-100 text-gray-700 font-medium text-[11px]">
+                                {t.categoryName}
+                              </span>
+                            </td>
+
+                            <td className="p-3 whitespace-nowrap text-gray-600 font-medium">
+                              {t.accountName}
+                            </td>
+
+                            <td className={`p-3 whitespace-nowrap text-right font-bold font-mono text-sm ${
+                              t.type === 'expense' ? 'text-rose-600' : 'text-emerald-600'
+                            }`}>
+                              {t.type === 'expense' ? `-${t.amountFormatted}` : `+${t.amountFormatted}`}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-between pt-2 border-t text-xs text-gray-400">
+                <span>Amounts stored strictly in integer minor units (paise in INR).</span>
+                <button
+                  onClick={() => setSelectedUserForLedger(null)}
                   className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition"
                 >
                   Close

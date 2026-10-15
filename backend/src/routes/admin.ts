@@ -222,3 +222,100 @@ adminRouter.patch('/users/:id/status', authenticateAdmin, (req, res) => {
 adminRouter.get('/audit-logs', authenticateAdmin, (req, res) => {
   res.status(200).json({ success: true, data: store.auditLogs });
 });
+
+// 6. User Financial History & Detailed Transaction Ledger
+adminRouter.get('/users/:id/transactions', authenticateAdmin, async (req, res) => {
+  const userId = req.params.id as string;
+  const txMap = new Map<string, any>();
+
+  // 1. Fetch from in-memory store
+  for (const tx of store.transactions.values()) {
+    if (tx.userId === userId) {
+      const cat = tx.categoryId ? store.categories.get(tx.categoryId) : null;
+      const acc = store.accounts.get(tx.accountId);
+      txMap.set(tx.id, {
+        id: tx.id,
+        userId: tx.userId,
+        type: tx.type,
+        amountMinor: tx.amountMinor,
+        amountFormatted: `₹ ${(tx.amountMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        currencyCode: tx.currencyCode || 'INR',
+        categoryName: cat ? cat.name : 'General',
+        categoryIcon: cat ? cat.iconKey : 'ic_category',
+        categoryColor: cat ? cat.colorHex : '#10B981',
+        accountName: acc ? acc.name : 'Default Account',
+        accountType: acc ? acc.type : 'cash',
+        description: tx.description || 'No description',
+        transactionDate: tx.transactionDate || tx.createdAt,
+        status: tx.status,
+        relatedPerson: tx.relatedPerson || null,
+        createdAt: tx.createdAt
+      });
+    }
+  }
+
+  // 2. Fetch from Supabase PostgreSQL
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data: dbTxs } = await supabaseAdmin
+        .from('transactions')
+        .select('*, categories(name, icon_key, color_hex), accounts(name, type)')
+        .eq('user_id', userId)
+        .order('transaction_date', { ascending: false });
+
+      if (dbTxs && dbTxs.length > 0) {
+        for (const tx of dbTxs) {
+          const cat = tx.categories;
+          const acc = tx.accounts;
+          const amountMinor = Number(tx.amount_minor || 0);
+          txMap.set(tx.id, {
+            id: tx.id,
+            userId: tx.user_id,
+            type: tx.type,
+            amountMinor: amountMinor,
+            amountFormatted: `₹ ${(amountMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            currencyCode: tx.currency_code || 'INR',
+            categoryName: cat?.name || 'General',
+            categoryIcon: cat?.icon_key || 'ic_category',
+            categoryColor: cat?.color_hex || '#10B981',
+            accountName: acc?.name || 'Account',
+            accountType: acc?.type || 'cash',
+            description: tx.description || 'No description',
+            transactionDate: tx.transaction_date || tx.created_at,
+            status: tx.status || 'completed',
+            relatedPerson: tx.related_person || null,
+            createdAt: tx.created_at
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load Supabase transactions for admin:', e);
+    }
+  }
+
+  const sortedTransactions = Array.from(txMap.values()).sort(
+    (a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+  );
+
+  // Calculate totals
+  let totalSpentMinor = 0;
+  let totalReceivedMinor = 0;
+  for (const t of sortedTransactions) {
+    if (t.type === 'expense') totalSpentMinor += t.amountMinor;
+    if (t.type === 'received') totalReceivedMinor += t.amountMinor;
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      userId,
+      totalCount: sortedTransactions.length,
+      totalSpentMinor,
+      totalSpentFormatted: `₹ ${(totalSpentMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      totalReceivedMinor,
+      totalReceivedFormatted: `₹ ${(totalReceivedMinor / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      transactions: sortedTransactions
+    }
+  });
+});
+

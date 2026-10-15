@@ -113,5 +113,14 @@ export const adminApi = {
     if (!res.ok) throw new Error('Failed to fetch service health');
     const json = await res.json();
     return json.data;
+  },
+
+  async getUserTransactions(adminKey: string, userId: string): Promise<import('../types').UserTransactionLedger> {
+    const res = await fetch(`${resolveBaseUrl()}/users/${userId}/transactions`, {
+      headers: { 'x-admin-key': adminKey }
+    });
+    if (!res.ok) throw new Error('Failed to fetch user transactions');
+    const json = await res.json();
+    return json.data;
   }
 };

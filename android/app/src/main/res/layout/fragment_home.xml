@@ -367,9 +367,11 @@
 
         <!-- Card 2: Upcoming Payment -->
         <androidx.cardview.widget.CardView
+            android:id="@+id/card_upcoming"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            android:visibility="gone"
             app:cardBackgroundColor="@color/bg_card"
             app:cardCornerRadius="12dp"
             app:cardElevation="1dp">
@@ -399,7 +401,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Electricity Bill"
+                        android:text=""
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -408,7 +410,7 @@
                         android:id="@+id/tv_upcoming_amount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="₹ 1,200 • 5 Oct"
+                        android:text=""
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
                 </LinearLayout>
@@ -417,9 +419,11 @@
 
         <!-- Card 3: Saving Goal -->
         <androidx.cardview.widget.CardView
+            android:id="@+id/card_goal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            android:visibility="gone"
             app:cardBackgroundColor="@color/bg_card"
             app:cardCornerRadius="12dp"
             app:cardElevation="1dp">

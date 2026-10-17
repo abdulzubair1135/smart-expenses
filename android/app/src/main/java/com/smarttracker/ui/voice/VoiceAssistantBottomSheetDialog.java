@@ -117,6 +117,10 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
         binding.btnEditDraft.setOnClickListener(v -> editDraft());
         binding.btnCancelDraft.setOnClickListener(v -> cancelDraft());
 
+        // Undo Confirmation Buttons
+        binding.btnConfirmUndo.setOnClickListener(v -> executeConfirmedUndo());
+        binding.btnCancelUndo.setOnClickListener(v -> cancelUndo());
+
         // Suggestion Chips
         binding.chipSampleExpense.setOnClickListener(v -> handleSpeechResult("Aaj lunch mein 250 rs kharch hue UPI se"));
         binding.chipSampleBalance.setOnClickListener(v -> handleSpeechResult("Mera total balance kitna hai"));
@@ -235,10 +239,28 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
         ActivityCompat.requestPermissions(activity, new String[]{android.Manifest.permission.RECORD_AUDIO}, 2001);
     }
 
+    private TransactionEntity pendingUndoTx = null;
+
     private void handleSpeechResult(String transcript) {
         resetMicVisuals();
         binding.cardTranscript.setVisibility(View.VISIBLE);
         binding.tvTranscript.setText("“" + transcript + "”");
+
+        // If currently waiting for Undo confirmation:
+        if (binding.cardUndoConfirmation.getVisibility() == View.VISIBLE && pendingUndoTx != null) {
+            String lower = transcript.toLowerCase(Locale.ROOT);
+            if (lower.matches(".*\\b(haa|ha|yes|confirm|delete|kardo|kar do|theek hai|sahi hai|ok|kar do delete|delete karo)\\b.*")) {
+                executeConfirmedUndo();
+                return;
+            } else if (lower.matches(".*\\b(nahi|na|cancel|mat karo|rehne do|no|mat kar|cancel karo)\\b.*")) {
+                cancelUndo();
+                return;
+            } else {
+                ttsManager.speak("Delete karne ke liye 'Haa' bole ya 'Nahi' bole.");
+                return;
+            }
+        }
+
         binding.tvVoiceStatus.setText("Processing voice command...");
         binding.tvVoiceStatus.setTextColor(ContextCompat.getColor(getContext(), R.color.brand_primary));
 
@@ -296,18 +318,36 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
             String userId = sessionManager.getUserId();
             TransactionEntity lastTx = AppDatabase.getDatabase(getContext()).transactionDao().getLatestTransaction(userId);
             if (lastTx != null) {
-                AppDatabase.getDatabase(getContext()).transactionDao().deleteById(lastTx.id);
-                String msg = "Aapka aakhri transaction (₹" + (lastTx.amountMinor / 100) + " ka " + lastTx.type + ") delete kar diya gaya hai.";
+                pendingUndoTx = lastTx;
+                long rupees = lastTx.amountMinor / 100;
+                String typeHindi = "expense".equalsIgnoreCase(lastTx.type) ? "kharch" :
+                        "received".equalsIgnoreCase(lastTx.type) ? "kamai" :
+                        "lend".equalsIgnoreCase(lastTx.type) ? "udhaar diya" :
+                        "borrow".equalsIgnoreCase(lastTx.type) ? "udhaar liya" : lastTx.type;
+
+                String spokenMsg = "Kya aap " + rupees + " rupaye ka " + typeHindi + " delete karna chahte hain? Confirm karne ke liye 'Haa' bole ya button dabaye.";
+
                 activity.runOnUiThread(() -> {
                     resetMicVisuals();
-                    binding.tvVoiceStatus.setText("Aakhri transaction delete ho gaya");
-                    binding.tvVoiceStatus.setTextColor(ContextCompat.getColor(getContext(), R.color.financial_expense));
-                    ttsManager.speak(msg);
-                    Toast.makeText(getContext(), "Deleted ₹" + (lastTx.amountMinor / 100) + " (" + lastTx.type + ")", Toast.LENGTH_SHORT).show();
-                    if (onTransactionSavedListener != null) {
-                        onTransactionSavedListener.onTransactionSaved();
+                    if (getBehavior() != null) {
+                        getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
                     }
-                    new Handler(Looper.getMainLooper()).postDelayed(this::dismiss, 1600);
+
+                    binding.cardClarification.setVisibility(View.GONE);
+                    binding.cardQueryResult.setVisibility(View.GONE);
+                    binding.cardVoiceDraft.setVisibility(View.GONE);
+                    binding.cardUndoConfirmation.setVisibility(View.VISIBLE);
+
+                    binding.tvUndoAmount.setText(FinancialEngine.formatMinorToSimpleINR(lastTx.amountMinor));
+                    binding.tvUndoQuestion.setText("Kya aap ₹" + rupees + " ka " + typeHindi + " delete / undo karna chahte hain?");
+                    String desc = (lastTx.description != null && !lastTx.description.isEmpty()) ? lastTx.description : typeHindi;
+                    binding.tvUndoDetails.setText(desc + " • " + typeHindi.toUpperCase());
+                    binding.tvUndoDate.setText(lastTx.transactionDate != null ? lastTx.transactionDate.split("T")[0] : "Today");
+
+                    binding.tvVoiceStatus.setText("Confirm Delete (" + FinancialEngine.formatMinorToSimpleINR(lastTx.amountMinor) + ")");
+                    binding.tvVoiceStatus.setTextColor(ContextCompat.getColor(getContext(), R.color.financial_expense));
+
+                    ttsManager.speak(spokenMsg);
                 });
             } else {
                 activity.runOnUiThread(() -> {
@@ -316,6 +356,47 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
                     ttsManager.speak("Delete karne ke liye koi transaction nahi mila.");
                 });
             }
+        });
+    }
+
+    private void executeConfirmedUndo() {
+        if (pendingUndoTx == null) return;
+        stopListening();
+        TransactionEntity txToDelete = pendingUndoTx;
+        pendingUndoTx = null;
+
+        // Delete from local Room database AND notify Supabase cloud server
+        repository.deleteTransaction(txToDelete.id);
+
+        long rupees = txToDelete.amountMinor / 100;
+        String successMsg = "Theek hai! Aapka " + rupees + " rupaye ka transaction delete kar diya gaya hai.";
+
+        activity.runOnUiThread(() -> {
+            resetMicVisuals();
+            binding.cardUndoConfirmation.setVisibility(View.GONE);
+            binding.cardVoiceDraft.setVisibility(View.GONE);
+            binding.tvVoiceStatus.setText("Aakhri transaction delete ho gaya");
+            binding.tvVoiceStatus.setTextColor(ContextCompat.getColor(getContext(), R.color.financial_expense));
+            ttsManager.speak(successMsg);
+            Toast.makeText(getContext(), "Deleted ₹" + rupees + " (" + txToDelete.type + ")", Toast.LENGTH_SHORT).show();
+
+            if (onTransactionSavedListener != null) {
+                onTransactionSavedListener.onTransactionSaved();
+            }
+
+            new Handler(Looper.getMainLooper()).postDelayed(this::dismiss, 1600);
+        });
+    }
+
+    private void cancelUndo() {
+        pendingUndoTx = null;
+        stopListening();
+        activity.runOnUiThread(() -> {
+            binding.cardUndoConfirmation.setVisibility(View.GONE);
+            binding.cardVoiceDraft.setVisibility(View.GONE);
+            binding.tvVoiceStatus.setText("Undo cancelled");
+            ttsManager.speak("Theek hai, cancel kar diya.");
+            new Handler(Looper.getMainLooper()).postDelayed(this::dismiss, 1000);
         });
     }
 
@@ -496,8 +577,8 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
         else if ("Savings".equalsIgnoreCase(currentDraft.accountName)) accountId = "acc_savings";
 
         String isoDate = currentDraft.transactionDate != null
-                ? currentDraft.transactionDate + "T12:00:00Z"
-                : new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(new Date());
+                ? currentDraft.transactionDate + "T12:00:00.000Z"
+                : new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).format(new Date());
 
         TransactionEntity entity = new TransactionEntity(
                 txId,

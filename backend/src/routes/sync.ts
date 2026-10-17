@@ -8,10 +8,21 @@ export const syncRouter = Router();
 // PUSH local offline operations / entities into cloud
 syncRouter.post('/push', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
-  const { operations, accounts, categories, transactions, trips, savingGoals, upcomingExpenses } = req.body;
+  const { operations, accounts, categories, transactions, trips, savingGoals, upcomingExpenses, deletedTransactionIds } = req.body;
+
+  // Process any deleted transaction IDs
+  if (Array.isArray(deletedTransactionIds)) {
+    for (const delId of deletedTransactionIds) {
+      try {
+        await dataAdapter.deleteTransaction(delId, userId);
+      } catch (e) {
+        console.warn('Sync delete transaction error:', delId, e);
+      }
+    }
+  }
 
   // Support multi-entity push
-  if (accounts || categories || transactions || trips || savingGoals || upcomingExpenses) {
+  if (accounts || categories || transactions || trips || savingGoals || upcomingExpenses || deletedTransactionIds) {
     const result = await dataAdapter.pushMultiEntity(userId, {
       accounts,
       categories,
@@ -23,7 +34,8 @@ syncRouter.post('/push', authenticateUser, async (req: AuthenticatedRequest, res
 
     return res.status(200).json({
       success: true,
-      data: result
+      data: result,
+      deletedCount: Array.isArray(deletedTransactionIds) ? deletedTransactionIds.length : 0
     });
   }
 

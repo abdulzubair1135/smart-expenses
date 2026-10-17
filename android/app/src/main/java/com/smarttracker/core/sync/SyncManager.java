@@ -258,10 +258,14 @@ public class SyncManager {
                     String tripId = t.has("tripId") && !t.get("tripId").isJsonNull() ? t.get("tripId").getAsString() : null;
                     boolean important = t.has("isImportant") && t.get("isImportant").getAsBoolean();
 
+                    long createdAt = t.has("createdAt") && !t.get("createdAt").isJsonNull()
+                            ? parseIsoDateToMillis(t.get("createdAt").getAsString())
+                            : System.currentTimeMillis();
+
                     txDao.insert(new TransactionEntity(
                             txId, txUserId, accountId, type, amountMinor, currency,
                             catId, desc, date, status, idemp, null, null,
-                            true, System.currentTimeMillis(), group, tripId, important
+                            true, createdAt, group, tripId, important
                     ));
                 }
             }
@@ -275,12 +279,22 @@ public class SyncManager {
         List<TransactionEntity> unsyncedTx = txDao.getUnsyncedTransactions();
         List<TripEntity> unsyncedTrips = tripDao.getUnsyncedTrips();
 
-        if (unsyncedTx.isEmpty() && unsyncedTrips.isEmpty()) {
+        java.util.Set<String> deletedIds = prefs.getStringSet("pending_deleted_tx_ids", java.util.Collections.emptySet());
+
+        if (unsyncedTx.isEmpty() && unsyncedTrips.isEmpty() && deletedIds.isEmpty()) {
             finalizeSyncSuccess();
             return;
         }
 
         JsonObject payload = new JsonObject();
+
+        if (!deletedIds.isEmpty()) {
+            JsonArray delArray = new JsonArray();
+            for (String did : deletedIds) {
+                delArray.add(did);
+            }
+            payload.add("deletedTransactionIds", delArray);
+        }
 
         if (!unsyncedTx.isEmpty()) {
             JsonArray txArray = new JsonArray();
@@ -330,6 +344,7 @@ public class SyncManager {
                     for (TripEntity tr : unsyncedTrips) {
                         tripDao.markAsSynced(tr.id);
                     }
+                    prefs.edit().remove("pending_deleted_tx_ids").apply();
                     finalizeSyncSuccess();
                 });
             }
@@ -372,6 +387,31 @@ public class SyncManager {
                     syncWork
             );
         } catch (Throwable ignored) {
+        }
+    }
+
+    public void queueDeletedTransaction(String txId) {
+        if (txId == null || txId.trim().isEmpty()) return;
+        java.util.Set<String> set = new java.util.HashSet<>(prefs.getStringSet("pending_deleted_tx_ids", new java.util.HashSet<>()));
+        set.add(txId);
+        prefs.edit().putStringSet("pending_deleted_tx_ids", set).apply();
+    }
+
+    private long parseIsoDateToMillis(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) return System.currentTimeMillis();
+        try {
+            String normalized = dateStr.replace("+00:00", "Z");
+            java.text.SimpleDateFormat sdf;
+            if (normalized.contains(".")) {
+                sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US);
+            } else {
+                sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US);
+            }
+            sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            java.util.Date parsed = sdf.parse(normalized);
+            return parsed != null ? parsed.getTime() : System.currentTimeMillis();
+        } catch (Exception e) {
+            return System.currentTimeMillis();
         }
     }
 }

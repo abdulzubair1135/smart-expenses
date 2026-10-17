@@ -149,6 +149,7 @@ public class HomeFragment extends Fragment {
 
         repository.getPrimaryGoalLive(userId).observe(getViewLifecycleOwner(), goal -> {
             if (goal != null && isAdded()) {
+                binding.cardGoal.setVisibility(View.VISIBLE);
                 binding.tvGoalTitle.setText(goal.title);
                 String amounts = String.format("%s / %s",
                         FinancialEngine.formatMinorToSimpleINR(goal.currentAmountMinor),
@@ -157,15 +158,20 @@ public class HomeFragment extends Fragment {
                 int progress = (int) ((goal.currentAmountMinor * 100.0) / goal.targetAmountMinor);
                 binding.tvGoalPercentage.setText(progress + "%");
                 binding.pbGoalProgress.setProgress(progress);
+            } else if (isAdded()) {
+                binding.cardGoal.setVisibility(View.GONE);
             }
         });
 
         repository.getNextUpcomingLive(userId).observe(getViewLifecycleOwner(), upcoming -> {
             if (upcoming != null && isAdded()) {
+                binding.cardUpcoming.setVisibility(View.VISIBLE);
                 binding.tvUpcomingTitle.setText(upcoming.title);
                 binding.tvUpcomingAmount.setText(String.format("%s • %s",
                         FinancialEngine.formatMinorToSimpleINR(upcoming.expectedAmountMinor),
                         upcoming.dueDate));
+            } else if (isAdded()) {
+                binding.cardUpcoming.setVisibility(View.GONE);
             }
         });
     }

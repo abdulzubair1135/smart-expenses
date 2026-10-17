@@ -497,4 +497,107 @@ public class BackendApiClient {
             }
         });
     }
+
+    // 11. Delete Transaction from Cloud
+    public void deleteTransaction(String transactionId, ApiCallback<JsonObject> callback) {
+        String token = sessionManager.getAuthToken();
+        if (token == null || token.trim().isEmpty()) {
+            if (callback != null) {
+                mainHandler.post(() -> callback.onError("Authentication token required"));
+            }
+            return;
+        }
+
+        deleteJson("/api/v1/transactions/" + transactionId, token, new NetworkCallback() {
+            @Override
+            public void onResponse(JsonObject json) {
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onSuccess(json));
+                }
+            }
+
+            @Override
+            public void onFailure(String error) {
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onError(error));
+                }
+            }
+        });
+    }
+
+    private void deleteJson(String endpoint, String authToken, NetworkCallback callback) {
+        executeSingleDelete(CLOUD_BASE_URL + endpoint, authToken, new NetworkCallback() {
+            @Override
+            public void onResponse(JsonObject json) {
+                callback.onResponse(json);
+            }
+
+            @Override
+            public void onFailure(String cloudError) {
+                Log.w(TAG, "Cloud DELETE failed (" + cloudError + "). Trying local development host...");
+                executeSingleDelete(USB_LOCAL_URL + endpoint, authToken, new NetworkCallback() {
+                    @Override
+                    public void onResponse(JsonObject json) {
+                        callback.onResponse(json);
+                    }
+
+                    @Override
+                    public void onFailure(String usbError) {
+                        executeSingleDelete(EMULATOR_URL + endpoint, authToken, new NetworkCallback() {
+                            @Override
+                            public void onResponse(JsonObject json) {
+                                callback.onResponse(json);
+                            }
+
+                            @Override
+                            public void onFailure(String emuError) {
+                                callback.onFailure(cloudError);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    private void executeSingleDelete(String fullUrl, String authToken, NetworkCallback callback) {
+        Request.Builder builder = new Request.Builder()
+                .url(fullUrl)
+                .delete();
+
+        if (authToken != null && !authToken.trim().isEmpty()) {
+            builder.addHeader("Authorization", "Bearer " + authToken);
+        }
+
+        httpClient.newCall(builder.build()).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                callback.onFailure(e.getMessage() != null ? e.getMessage() : "Network request failed");
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                String responseStr = response.body() != null ? response.body().string() : "{}";
+                try {
+                    JsonObject json = JsonParser.parseString(responseStr).getAsJsonObject();
+                    if (response.isSuccessful()) {
+                        callback.onResponse(json);
+                    } else {
+                        String errMsg = "Request failed with code " + response.code();
+                        if (json.has("error") && json.get("error").isJsonObject()) {
+                            JsonObject errObj = json.getAsJsonObject("error");
+                            if (errObj.has("message")) {
+                                errMsg = errObj.get("message").getAsString();
+                            }
+                        } else if (json.has("message")) {
+                            errMsg = json.get("message").getAsString();
+                        }
+                        callback.onFailure(errMsg);
+                    }
+                } catch (Exception parseEx) {
+                    callback.onFailure("Failed to parse server response");
+                }
+            }
+        });
+    }
 }

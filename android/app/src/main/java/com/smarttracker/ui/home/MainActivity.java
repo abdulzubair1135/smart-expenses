@@ -308,7 +308,7 @@ public class MainActivity extends AppCompatActivity {
                 isImportant = formBinding.cbIsImportant.isChecked();
             }
 
-            String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(new Date());
+            String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).format(new Date());
             String categoryId = "cat_other";
             if ("received".equalsIgnoreCase(type)) categoryId = "cat_salary";
             else if ("expense".equalsIgnoreCase(type)) categoryId = "cat_food";
@@ -396,7 +396,7 @@ public class MainActivity extends AppCompatActivity {
             if (formBinding.rbAccCash.isChecked()) accountId = "acc_cash";
             if (formBinding.rbAccBank.isChecked()) accountId = "acc_bank";
 
-            String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(new Date());
+            String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).format(new Date());
             String userId = sessionManager.getUserId();
 
             String catId = "cat_other";

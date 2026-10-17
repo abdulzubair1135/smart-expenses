@@ -19,7 +19,9 @@ import com.smarttracker.data.local.entity.TripEntity;
 import com.smarttracker.data.local.entity.UpcomingExpenseEntity;
 
 import android.content.Context;
+import android.util.Log;
 import com.smarttracker.core.sync.SyncManager;
+import com.smarttracker.data.remote.BackendApiClient;
 
 import java.util.List;
 
@@ -81,6 +83,18 @@ public class TransactionRepository {
         AppDatabase.databaseWriteExecutor.execute(() -> {
             transactionDao.deleteById(id);
             if (applicationContext != null) {
+                BackendApiClient.getInstance(applicationContext).deleteTransaction(id, new BackendApiClient.ApiCallback<com.google.gson.JsonObject>() {
+                    @Override
+                    public void onSuccess(com.google.gson.JsonObject response) {
+                        Log.i("TransactionRepository", "Cloud transaction deleted: " + id);
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.w("TransactionRepository", "Cloud transaction deletion queued: " + error);
+                        SyncManager.getInstance(applicationContext).queueDeletedTransaction(id);
+                    }
+                });
                 SyncManager.getInstance(applicationContext).triggerSync();
             }
         });

@@ -50,7 +50,7 @@ public interface TransactionDao {
     @Query("UPDATE transactions SET userId = :newUserId")
     void reassignAllTransactionsToUser(String newUserId);
 
-    @Query("SELECT * FROM transactions WHERE userId = :userId ORDER BY createdAt DESC LIMIT 1")
+    @Query("SELECT * FROM transactions WHERE userId = :userId ORDER BY transactionDate DESC, createdAt DESC, rowid DESC LIMIT 1")
     TransactionEntity getLatestTransaction(String userId);
 
     // ==========================================

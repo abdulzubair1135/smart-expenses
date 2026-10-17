@@ -79,7 +79,7 @@ public class SyncManager {
         this.mainHandler = new Handler(Looper.getMainLooper());
 
         long savedSyncTime = prefs.getLong(KEY_LAST_SYNC_TIME, 0L);
-        lastSyncTimeLive.setValue(savedSyncTime);
+        lastSyncTimeLive.postValue(savedSyncTime);
 
         schedulePeriodicSync();
     }
@@ -124,8 +124,23 @@ public class SyncManager {
 
     private void performTwoWaySync() {
         String userId = sessionManager.getUserId();
+        if (userId == null || userId.trim().isEmpty()) {
+            isSyncing.set(false);
+            return;
+        }
+
+        TransactionDao txDao = database.transactionDao();
+        AccountDao accDao = database.accountDao();
+        int localTxCount = txDao.getAllTransactions(userId).size();
+        int localAccCount = accDao.getAccounts(userId).size();
+
         long lastSync = prefs.getLong(KEY_LAST_SYNC_TIME, 0L);
-        String sinceStr = lastSync > 0 ? new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(new java.util.Date(lastSync)) : null;
+        // If local database has 0 transactions or 0 accounts, ALWAYS perform a full pull (sinceStr = null)
+        // so data is seamlessly restored when rebooting phone, reinstalling app, or switching users!
+        String sinceStr = null;
+        if (lastSync > 0 && localTxCount > 0 && localAccCount > 0) {
+            sinceStr = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(new java.util.Date(lastSync));
+        }
 
         // STEP 1: PULL CLOUD ENTITIES
         apiClient.pullSyncData(sinceStr, new BackendApiClient.ApiCallback<JsonObject>() {
@@ -230,13 +245,13 @@ public class SyncManager {
                 TransactionEntity existing = txDao.getTransactionById(txId);
                 // If record does not exist or exists and was already synced, apply cloud record
                 if (existing == null || existing.isSynced) {
-                    String accountId = t.get("accountId").getAsString();
+                    String accountId = t.has("accountId") && !t.get("accountId").isJsonNull() ? t.get("accountId").getAsString() : "";
                     String type = t.get("type").getAsString();
                     long amountMinor = t.get("amountMinor").getAsLong();
                     String currency = t.has("currencyCode") ? t.get("currencyCode").getAsString() : "INR";
                     String catId = t.has("categoryId") && !t.get("categoryId").isJsonNull() ? t.get("categoryId").getAsString() : null;
-                    String desc = t.has("description") ? t.get("description").getAsString() : "";
-                    String date = t.get("transactionDate").getAsString();
+                    String desc = t.has("description") && !t.get("description").isJsonNull() ? t.get("description").getAsString() : "";
+                    String date = t.has("transactionDate") && !t.get("transactionDate").isJsonNull() ? t.get("transactionDate").getAsString() : "";
                     String status = t.has("status") ? t.get("status").getAsString() : "completed";
                     String idemp = t.has("idempotencyKey") && !t.get("idempotencyKey").isJsonNull() ? t.get("idempotencyKey").getAsString() : null;
                     String group = t.has("expenseGroup") ? t.get("expenseGroup").getAsString() : "GENERAL";

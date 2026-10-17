@@ -900,13 +900,13 @@ export class DataAdapter {
   }> {
     const sinceTimestamp = since ? new Date(since).getTime() : 0;
 
-    const accounts = (await this.getAccounts(userId)).filter(a => sinceTimestamp === 0 || new Date(a.createdAt).getTime() > sinceTimestamp);
-    const categories = (await this.getCategories(userId)).filter(c => sinceTimestamp === 0 || new Date(c.createdAt).getTime() > sinceTimestamp);
-    const transactions = (await this.getTransactions(userId)).filter(t => sinceTimestamp === 0 || new Date(t.createdAt).getTime() > sinceTimestamp);
-    const trips = (await this.getTrips(userId)).filter(tr => sinceTimestamp === 0 || new Date(tr.createdAt).getTime() > sinceTimestamp);
+    const accounts = await this.getAccounts(userId);
+    const categories = await this.getCategories(userId);
+    const trips = await this.getTrips(userId);
+    const transactions = await this.getTransactions(userId);
 
-    const savingGoals = Array.from(store.savingGoals.values()).filter(sg => sg.userId === userId && (sinceTimestamp === 0 || new Date(sg.createdAt).getTime() > sinceTimestamp));
-    const upcomingExpenses = Array.from(store.upcomingExpenses.values()).filter(ue => ue.userId === userId && (sinceTimestamp === 0 || new Date(ue.createdAt).getTime() > sinceTimestamp));
+    const savingGoals = Array.from(store.savingGoals.values()).filter(sg => sg.userId === userId);
+    const upcomingExpenses = Array.from(store.upcomingExpenses.values()).filter(ue => ue.userId === userId);
 
     return {
       accounts,

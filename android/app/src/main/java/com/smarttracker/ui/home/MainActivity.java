@@ -98,6 +98,9 @@ public class MainActivity extends AppCompatActivity {
         updateNavIcons(binding.ivNavHome, binding.tvNavHome);
 
         setupNavClickListeners();
+
+        // Immediate background cloud sync on app start
+        com.smarttracker.core.sync.SyncManager.getInstance(this).triggerSync();
     }
 
     @Override
@@ -306,6 +309,9 @@ public class MainActivity extends AppCompatActivity {
             }
 
             String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(new Date());
+            String categoryId = "cat_other";
+            if ("received".equalsIgnoreCase(type)) categoryId = "cat_salary";
+            else if ("expense".equalsIgnoreCase(type)) categoryId = "cat_food";
 
             TransactionEntity tx = new TransactionEntity(
                     UUID.randomUUID().toString(),
@@ -314,7 +320,7 @@ public class MainActivity extends AppCompatActivity {
                     type,
                     minorUnits,
                     "INR",
-                    "cat_food",
+                    categoryId,
                     desc,
                     dateStr,
                     "completed",
@@ -393,6 +399,14 @@ public class MainActivity extends AppCompatActivity {
             String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(new Date());
             String userId = sessionManager.getUserId();
 
+            String catId = "cat_other";
+            if ("Food".equalsIgnoreCase(draft.categoryName)) catId = "cat_food";
+            else if ("Travel".equalsIgnoreCase(draft.categoryName)) catId = "cat_travel";
+            else if ("Shopping".equalsIgnoreCase(draft.categoryName)) catId = "cat_shopping";
+            else if ("Bills".equalsIgnoreCase(draft.categoryName)) catId = "cat_bills";
+            else if ("Salary".equalsIgnoreCase(draft.categoryName) || "received".equalsIgnoreCase(draft.transactionType)) catId = "cat_salary";
+            else if ("expense".equalsIgnoreCase(draft.transactionType)) catId = "cat_food";
+
             TransactionEntity tx = new TransactionEntity(
                     UUID.randomUUID().toString(),
                     userId,
@@ -400,11 +414,11 @@ public class MainActivity extends AppCompatActivity {
                     draft.transactionType != null ? draft.transactionType.toLowerCase() : "expense",
                     minorUnits,
                     "INR",
-                    "cat_food",
+                    catId,
                     desc,
                     dateStr,
                     "completed",
-                    draft.idempotencyKey,
+                    draft.idempotencyKey != null ? draft.idempotencyKey : UUID.randomUUID().toString(),
                     draft.recipient,
                     draft.destinationAccount,
                     false,

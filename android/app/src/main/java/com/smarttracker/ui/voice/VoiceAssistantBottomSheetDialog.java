@@ -241,22 +241,44 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
 
     private TransactionEntity pendingUndoTx = null;
 
+    private boolean isAffirmative(String text) {
+        if (text == null) return false;
+        String lower = text.toLowerCase(Locale.ROOT);
+        return lower.matches(".*\\b(haa|ha|haan|yes|yep|confirm|save|kardo|kar do|karo|theek hai|sahi hai|ok|done|rec|record|haanji|haan ji|kar do save|kardo save|ha kardo|haa kardo|haan kardo|kar do record|kardo record|kardo rec|kar do rec)\\b.*");
+    }
+
+    private boolean isNegative(String text) {
+        if (text == null) return false;
+        String lower = text.toLowerCase(Locale.ROOT);
+        return lower.matches(".*\\b(nahi|na|nahin|no|cancel|mat karo|mat kar|mat kardo|mat kar do|rehne do|rehne de|cancel kar do|hatao|hata do|discard|stop|chhod do|cancel karo)\\b.*");
+    }
+
     private void handleSpeechResult(String transcript) {
         resetMicVisuals();
         binding.cardTranscript.setVisibility(View.VISIBLE);
         binding.tvTranscript.setText("“" + transcript + "”");
 
-        // If currently waiting for Undo confirmation:
+        // 1. If currently waiting for Undo confirmation:
         if (binding.cardUndoConfirmation.getVisibility() == View.VISIBLE && pendingUndoTx != null) {
-            String lower = transcript.toLowerCase(Locale.ROOT);
-            if (lower.matches(".*\\b(haa|ha|yes|confirm|delete|kardo|kar do|theek hai|sahi hai|ok|kar do delete|delete karo)\\b.*")) {
+            if (isAffirmative(transcript)) {
                 executeConfirmedUndo();
                 return;
-            } else if (lower.matches(".*\\b(nahi|na|cancel|mat karo|rehne do|no|mat kar|cancel karo)\\b.*")) {
+            } else if (isNegative(transcript)) {
                 cancelUndo();
                 return;
             } else {
                 ttsManager.speak("Delete karne ke liye 'Haa' bole ya 'Nahi' bole.");
+                return;
+            }
+        }
+
+        // 2. If currently reviewing a Transaction Draft (cardVoiceDraft is VISIBLE):
+        if (binding.cardVoiceDraft.getVisibility() == View.VISIBLE && currentDraft != null && currentDraft.amountMinor > 0) {
+            if (isAffirmative(transcript)) {
+                confirmAndSaveDraft();
+                return;
+            } else if (isNegative(transcript)) {
+                cancelDraft();
                 return;
             }
         }
@@ -270,10 +292,8 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
     }
 
     private void processParsedCommand(VoiceCommandModel result) {
-        this.currentDraft = result;
-
         if ("CONFIRM_DRAFT".equals(result.intent)) {
-            if (currentDraft != null && currentDraft.amountMinor > 0) {
+            if (this.currentDraft != null && this.currentDraft.amountMinor > 0) {
                 confirmAndSaveDraft();
             } else {
                 ttsManager.speak("Pehle koi transaction boliye, tab save karenge.");
@@ -296,9 +316,12 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
             return;
         }
 
+        this.currentDraft = result;
+
         if (result.clarificationRequired) {
             binding.cardVoiceDraft.setVisibility(View.GONE);
             binding.cardQueryResult.setVisibility(View.GONE);
+            binding.cardUndoConfirmation.setVisibility(View.GONE);
             binding.cardClarification.setVisibility(View.VISIBLE);
             binding.tvClarificationQuestion.setText(result.clarificationQuestion != null ? result.clarificationQuestion : "Kripya clear boliye.");
             binding.tvVoiceStatus.setText("Clarification required");
@@ -314,6 +337,7 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
     }
 
     private void handleUndoLastTransaction() {
+        stopListening();
         AppDatabase.databaseWriteExecutor.execute(() -> {
             String userId = sessionManager.getUserId();
             TransactionEntity lastTx = AppDatabase.getDatabase(getContext()).transactionDao().getLatestTransaction(userId);
@@ -347,7 +371,13 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
                     binding.tvVoiceStatus.setText("Confirm Delete (" + FinancialEngine.formatMinorToSimpleINR(lastTx.amountMinor) + ")");
                     binding.tvVoiceStatus.setTextColor(ContextCompat.getColor(getContext(), R.color.financial_expense));
 
-                    ttsManager.speak(spokenMsg);
+                    ttsManager.speak(spokenMsg, utteranceId -> {
+                        activity.runOnUiThread(() -> {
+                            if (binding != null && binding.cardUndoConfirmation.getVisibility() == View.VISIBLE) {
+                                startListening();
+                            }
+                        });
+                    });
                 });
             } else {
                 activity.runOnUiThread(() -> {
@@ -369,22 +399,27 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
         repository.deleteTransaction(txToDelete.id);
 
         long rupees = txToDelete.amountMinor / 100;
-        String successMsg = "Theek hai! Aapka " + rupees + " rupaye ka transaction delete kar diya gaya hai.";
+        String typeHindi = "expense".equalsIgnoreCase(txToDelete.type) ? "kharch" :
+                "received".equalsIgnoreCase(txToDelete.type) ? "kamai" :
+                "lend".equalsIgnoreCase(txToDelete.type) ? "udhaar diya" : txToDelete.type;
+        String successMsg = "Theek hai! Aapka " + rupees + " rupaye ka " + typeHindi + " delete kar diya gaya hai.";
 
         activity.runOnUiThread(() -> {
             resetMicVisuals();
             binding.cardUndoConfirmation.setVisibility(View.GONE);
             binding.cardVoiceDraft.setVisibility(View.GONE);
-            binding.tvVoiceStatus.setText("Aakhri transaction delete ho gaya");
+            binding.tvVoiceStatus.setText("Delete ho gaya! Agla boliye ya mic dabaye");
             binding.tvVoiceStatus.setTextColor(ContextCompat.getColor(getContext(), R.color.financial_expense));
-            ttsManager.speak(successMsg);
             Toast.makeText(getContext(), "Deleted ₹" + rupees + " (" + txToDelete.type + ")", Toast.LENGTH_SHORT).show();
 
             if (onTransactionSavedListener != null) {
                 onTransactionSavedListener.onTransactionSaved();
             }
 
-            new Handler(Looper.getMainLooper()).postDelayed(this::dismiss, 1600);
+            // Speak full sentence completely and DO NOT auto-dismiss to home screen
+            ttsManager.speak(successMsg, utteranceId -> {
+                activity.runOnUiThread(this::resetMicVisuals);
+            });
         });
     }
 
@@ -392,11 +427,13 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
         pendingUndoTx = null;
         stopListening();
         activity.runOnUiThread(() -> {
+            resetMicVisuals();
             binding.cardUndoConfirmation.setVisibility(View.GONE);
             binding.cardVoiceDraft.setVisibility(View.GONE);
-            binding.tvVoiceStatus.setText("Undo cancelled");
-            ttsManager.speak("Theek hai, cancel kar diya.");
-            new Handler(Looper.getMainLooper()).postDelayed(this::dismiss, 1000);
+            binding.tvVoiceStatus.setText("Undo cancelled. Agla boliye ya mic dabaye");
+            ttsManager.speak("Theek hai, cancel kar diya.", utteranceId -> {
+                activity.runOnUiThread(this::resetMicVisuals);
+            });
         });
     }
 
@@ -407,6 +444,7 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
 
         binding.cardClarification.setVisibility(View.GONE);
         binding.cardQueryResult.setVisibility(View.GONE);
+        binding.cardUndoConfirmation.setVisibility(View.GONE);
         binding.cardVoiceDraft.setVisibility(View.VISIBLE);
 
         binding.tvVoiceStatus.setText("Review & Confirm Transaction");
@@ -447,9 +485,16 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
         binding.tvDraftDate.setText(draft.transactionDate != null ? draft.transactionDate : "Today");
         binding.tvDraftDescription.setText("Note: " + (draft.description != null ? draft.description : "-"));
 
-        // Speak confirmation prompt via offline TTS
+        // Speak confirmation prompt via offline TTS and auto-listen on finish
         if (draft.spokenResponse != null && !draft.spokenResponse.isEmpty()) {
-            ttsManager.speak(draft.spokenResponse);
+            ttsManager.speak(draft.spokenResponse, utteranceId -> {
+                activity.runOnUiThread(() -> {
+                    // Activate listening so user can simply say "Haa kardo" / "Kardo" / "Nahi"
+                    if (binding != null && binding.cardVoiceDraft.getVisibility() == View.VISIBLE) {
+                        startListening();
+                    }
+                });
+            });
         }
     }
 
@@ -604,18 +649,40 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
             com.smarttracker.core.sync.SyncManager.getInstance(getContext()).triggerSync();
         } catch (Throwable ignored) {}
 
-        String successMsg = "Ho gaya! Aapka " + (currentDraft.amountMinor / 100) + " rupaye ka " + type + " save ho gaya.";
-        ttsManager.speak(successMsg);
-        Toast.makeText(getContext(), "Transaction saved offline (" + type.toUpperCase() + ")!", Toast.LENGTH_SHORT).show();
+        long rupees = currentDraft.amountMinor / 100;
+        String typeHindi = "expense".equalsIgnoreCase(type) ? "kharch" :
+                "received".equalsIgnoreCase(type) ? "kamai" :
+                "lend".equalsIgnoreCase(type) ? "udhaar diya" :
+                "borrow".equalsIgnoreCase(type) ? "udhaar liya" : type;
 
-        binding.tvVoiceStatus.setText("Saved successfully!");
-        binding.tvVoiceStatus.setTextColor(ContextCompat.getColor(getContext(), R.color.brand_primary));
+        String successMsg = "Ho gaya! Aapka " + rupees + " rupaye ka " + typeHindi + " save ho gaya.";
 
-        if (onTransactionSavedListener != null) {
-            onTransactionSavedListener.onTransactionSaved();
-        }
+        long savedAmountMinor = currentDraft.amountMinor;
+        String savedType = type;
 
-        new Handler(Looper.getMainLooper()).postDelayed(this::dismiss, 1200);
+        activity.runOnUiThread(() -> {
+            resetMicVisuals();
+            binding.cardVoiceDraft.setVisibility(View.GONE);
+            binding.cardClarification.setVisibility(View.GONE);
+            binding.cardQueryResult.setVisibility(View.GONE);
+            binding.cardUndoConfirmation.setVisibility(View.GONE);
+
+            binding.tvVoiceStatus.setText("Save ho gaya (" + FinancialEngine.formatMinorToSimpleINR(savedAmountMinor) + ")! Agla boliye ya mic dabaye");
+            binding.tvVoiceStatus.setTextColor(ContextCompat.getColor(getContext(), R.color.brand_primary));
+            Toast.makeText(getContext(), "Saved " + FinancialEngine.formatMinorToSimpleINR(savedAmountMinor) + " (" + savedType.toUpperCase() + ")", Toast.LENGTH_SHORT).show();
+
+            currentDraft = null;
+            isSaving = false;
+
+            if (onTransactionSavedListener != null) {
+                onTransactionSavedListener.onTransactionSaved();
+            }
+
+            // Speak full sentence completely and DO NOT auto-dismiss to home screen
+            ttsManager.speak(successMsg, utteranceId -> {
+                activity.runOnUiThread(this::resetMicVisuals);
+            });
+        });
     }
 
     private void editDraft() {
@@ -626,8 +693,17 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
     }
 
     private void cancelDraft() {
-        ttsManager.speak("Theek hai, cancel kar diya.");
-        dismiss();
+        currentDraft = null;
+        isSaving = false;
+        activity.runOnUiThread(() -> {
+            resetMicVisuals();
+            binding.cardVoiceDraft.setVisibility(View.GONE);
+            binding.cardClarification.setVisibility(View.GONE);
+            binding.tvVoiceStatus.setText("Cancel ho gaya. Agla boliye ya mic dabaye");
+            ttsManager.speak("Theek hai, cancel kar diya.", utteranceId -> {
+                activity.runOnUiThread(this::resetMicVisuals);
+            });
+        });
     }
 
     private void cleanup() {

@@ -64,7 +64,7 @@ public class LocalPatternLanguageParser {
         }
 
         // Stage 3: Confirmations & Cancellations
-        if (text.matches(".*\\b(haan|ha|yes|yep|confirm|save|theek hai|karo|done)\\b.*") &&
+        if (text.matches(".*\\b(haan|ha|yes|yep|confirm|save|theek hai|sahi hai|karo|done|kardo|kar do|kar do save|kardo save|rec|record|haanji|haan ji|ha kardo|haa kardo|haan kardo|kar do record|kardo record|kardo rec|kar do rec)\\b.*") &&
                 !text.matches(".*\\b(kharch|rupaye|rs|diye|aaye|transfer|kamaye|udhaar|udhar|split|bill)\\b.*")) {
             model.intent = "CONFIRM_DRAFT";
             model.spokenResponse = "Transaction save kar raha hoon.";
@@ -72,7 +72,7 @@ public class LocalPatternLanguageParser {
             return model;
         }
 
-        if (text.matches(".*\\b(cancel|mat karo|cancel kar do|hatao|hata do|discard|stop)\\b.*") &&
+        if (text.matches(".*\\b(nahi|na|nahin|no|cancel|mat karo|mat kar|mat kardo|mat kar do|rehne do|rehne de|cancel kar do|hatao|hata do|discard|stop|chhod do|cancel karo)\\b.*") &&
                 !text.matches(".*\\b(kharch|rupaye|rs|diye|aaye|transfer|kamaye|delete)\\b.*")) {
             model.intent = "CANCEL_DRAFT";
             model.spokenResponse = "Entry cancel kar di gayi.";
@@ -356,15 +356,15 @@ public class LocalPatternLanguageParser {
             long rupees = amountMinor / 100;
             String dateLabel = txDate.equals(todayStr) ? "" : " (" + txDate + ")";
             if ("expense".equalsIgnoreCase(txType)) {
-                model.spokenResponse = rupees + " rupaye ka " + detectedCategory + " kharch " + detectedAccount + " se save kar doon?" + dateLabel;
+                model.spokenResponse = rupees + " rupaye ka " + detectedCategory + " kharch record kar doon?" + dateLabel;
             } else if ("received".equalsIgnoreCase(txType)) {
-                model.spokenResponse = rupees + " rupaye ka payment " + detectedAccount + " mein record kar doon?" + dateLabel;
+                model.spokenResponse = rupees + " rupaye ka payment record kar doon?" + dateLabel;
             } else if ("lend".equalsIgnoreCase(txType)) {
-                model.spokenResponse = (recipient != null ? recipient : "Friend") + " ko " + rupees + " rupaye udhar diye, record kar doon?" + dateLabel;
+                model.spokenResponse = (recipient != null ? recipient : "Dost") + " ko " + rupees + " rupaye udhar diye, record kar doon?" + dateLabel;
             } else if ("borrow".equalsIgnoreCase(txType)) {
-                model.spokenResponse = (recipient != null ? recipient : "Friend") + " se " + rupees + " rupaye udhar mile, record kar doon?" + dateLabel;
+                model.spokenResponse = (recipient != null ? recipient : "Dost") + " se " + rupees + " rupaye udhar mile, record kar doon?" + dateLabel;
             } else if ("transfer".equalsIgnoreCase(txType)) {
-                model.spokenResponse = "₹" + rupees + " transfer karne ke liye confirm kijiye.";
+                model.spokenResponse = rupees + " rupaye transfer record kar doon?" + dateLabel;
             }
         }
 

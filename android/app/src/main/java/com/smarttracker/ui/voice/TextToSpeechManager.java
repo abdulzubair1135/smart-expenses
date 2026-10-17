@@ -3,6 +3,7 @@ package com.smarttracker.ui.voice;
 import android.content.Context;
 import android.os.Build;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.speech.tts.Voice;
 import android.util.Log;
 
@@ -19,11 +20,17 @@ import java.util.Set;
 public class TextToSpeechManager {
 
     private static final String TAG = "TextToSpeechManager";
+
+    public interface TTSCompletionCallback {
+        void onUtteranceDone(String utteranceId);
+    }
+
     private TextToSpeech tts;
     private boolean isInitialized = false;
     private boolean isMuted = false;
     private String selectedVoiceName = "Default";
     private boolean hasOfflineVoice = false;
+    private TTSCompletionCallback activeCallback;
 
     public TextToSpeechManager(Context context) {
         tts = new TextToSpeech(context.getApplicationContext(), status -> {
@@ -44,6 +51,34 @@ public class TextToSpeechManager {
 
                 tts.setPitch(1.0f);
                 tts.setSpeechRate(0.95f);
+
+                tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                    @Override
+                    public void onStart(String utteranceId) {
+                        Log.d(TAG, "TTS onStart: " + utteranceId);
+                    }
+
+                    @Override
+                    public void onDone(String utteranceId) {
+                        Log.d(TAG, "TTS onDone: " + utteranceId);
+                        if (activeCallback != null) {
+                            TTSCompletionCallback cb = activeCallback;
+                            activeCallback = null;
+                            cb.onUtteranceDone(utteranceId);
+                        }
+                    }
+
+                    @Override
+                    public void onError(String utteranceId) {
+                        Log.w(TAG, "TTS onError: " + utteranceId);
+                        if (activeCallback != null) {
+                            TTSCompletionCallback cb = activeCallback;
+                            activeCallback = null;
+                            cb.onUtteranceDone(utteranceId);
+                        }
+                    }
+                });
+
                 isInitialized = true;
                 Log.d(TAG, "TTS initialized. Offline voice available: " + hasOfflineVoice);
             } else {
@@ -102,13 +137,25 @@ public class TextToSpeechManager {
     }
 
     public void speak(String text) {
+        speak(text, null);
+    }
+
+    public void speak(String text, @Nullable TTSCompletionCallback callback) {
         if (!isInitialized || isMuted || tts == null || text == null || text.trim().isEmpty()) {
+            if (callback != null) {
+                callback.onUtteranceDone("empty_or_muted");
+            }
             return;
         }
         try {
-            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "voice_utterance_" + System.currentTimeMillis());
+            this.activeCallback = callback;
+            String utteranceId = "voice_utterance_" + System.currentTimeMillis();
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId);
         } catch (Exception e) {
             Log.e(TAG, "Error in TTS speak", e);
+            if (callback != null) {
+                callback.onUtteranceDone("error");
+            }
         }
     }
 

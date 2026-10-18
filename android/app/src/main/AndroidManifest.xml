@@ -67,6 +67,19 @@
             android:exported="true" />
 
 
+        <!-- Firebase Cloud Messaging Service -->
+        <service
+            android:name=".notifications.SmartExpensesFCMService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- FCM Default Notification Channel -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="smart_expenses_notifications" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

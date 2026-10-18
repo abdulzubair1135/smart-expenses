@@ -40,13 +40,6 @@ authRouter.post('/register', async (req, res) => {
 
   // Duplicate email check
   const normalizedEmail = email.trim().toLowerCase();
-  const existing = Array.from(store.profiles.values()).find(
-    p => p.email.toLowerCase() === normalizedEmail
-  );
-  if (existing) {
-    res.status(409).json({ success: false, error: { message: 'An account with this email already exists' } });
-    return;
-  }
 
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
@@ -61,6 +54,14 @@ authRouter.post('/register', async (req, res) => {
       }
     } catch (e) {
       console.warn('Error checking existing email in Supabase:', e);
+    }
+  } else {
+    const existing = Array.from(store.profiles.values()).find(
+      p => p.email.toLowerCase() === normalizedEmail
+    );
+    if (existing) {
+      res.status(409).json({ success: false, error: { message: 'An account with this email already exists' } });
+      return;
     }
   }
 
@@ -120,8 +121,9 @@ authRouter.post('/register', async (req, res) => {
         display_name: name.trim(),
         email: normalizedEmail,
         account_status: 'verified',
-        terms_accepted: true,
         terms_version: '2026.1',
+        privacy_version: '2026.1',
+        terms_consented_at: nowIso,
         created_at: nowIso,
         updated_at: nowIso
       });

@@ -213,39 +213,8 @@ export class MemoryStore {
     ];
     defaultCats.forEach(c => this.categories.set(c.id, c));
 
-    // 2. Real application primary user profile (persisted across restarts)
-    const primaryUserId = '0034a254-3972-4509-ac85-8f9172574ca4';
-    if (!this.profiles.has(primaryUserId)) {
-      const nowIso = new Date().toISOString();
-      this.profiles.set(primaryUserId, {
-        id: primaryUserId,
-        email: 'abdulzubair221@gmail.com',
-        displayName: 'abdul',
-        accountStatus: 'verified',
-        termsConsent: {
-          termsVersion: '2026.1',
-          privacyVersion: '2026.1',
-          consentedAt: nowIso
-        },
-        createdAt: nowIso
-      });
-      this.passwords.set(primaryUserId, 'password123');
-      this.activeTokens.add(`demo-user-${primaryUserId}`);
-      this.activeTokens.add(primaryUserId);
-
-      // Presence
-      this.userPresence.set(primaryUserId, {
-        userId: primaryUserId,
-        lastSeenAt: nowIso,
-        lastHeartbeatAt: nowIso,
-        clientPlatform: 'android',
-        updatedAt: nowIso
-      });
-
-      // Real activity events only — no fake transaction events
-      this.recordActivity(primaryUserId, 'ACCOUNT_VERIFIED', 'success');
-      this.recordActivity(primaryUserId, 'SESSION_INITIALIZED', 'success');
-    }
+    // 2. Real application users are dynamically registered in Supabase PostgreSQL.
+    // Zero hardcoded accounts so that users can register their real email freely.
 
     // 3. Only seed automated test fixtures in test mode (NODE_ENV === 'test')
     // In production and real execution, zero fake users or fake transactions are inserted.

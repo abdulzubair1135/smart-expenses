@@ -244,13 +244,13 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
     private boolean isAffirmative(String text) {
         if (text == null) return false;
         String lower = text.toLowerCase(Locale.ROOT);
-        return lower.matches(".*\\b(haa|ha|haan|yes|yep|confirm|save|kardo|kar do|karo|theek hai|sahi hai|ok|done|rec|record|haanji|haan ji|kar do save|kardo save|ha kardo|haa kardo|haan kardo|kar do record|kardo record|kardo rec|kar do rec)\\b.*");
+        return lower.matches(".*\\b(haa|ha|haan|yes|yep|confirm|save|kardo|kar do|karo|theek hai|sahi hai|ok|done|rec|record|haanji|haan ji|kar do save|kardo save|ha kardo|haa kardo|haan kardo|kar do record|kardo record|kardo rec|kar do rec|sev|sev kar do|सेव|कर दो|करदो|हां|हाँ|हॉ|हांजी|ठीक है|सही है)\\b.*");
     }
 
     private boolean isNegative(String text) {
         if (text == null) return false;
         String lower = text.toLowerCase(Locale.ROOT);
-        return lower.matches(".*\\b(nahi|na|nahin|no|cancel|mat karo|mat kar|mat kardo|mat kar do|rehne do|rehne de|cancel kar do|hatao|hata do|discard|stop|chhod do|cancel karo)\\b.*");
+        return lower.matches(".*\\b(nahi|na|nahin|no|cancel|mat karo|mat kar|mat kardo|mat kar do|rehne do|rehne de|cancel kar do|hatao|hata do|discard|stop|chhod do|cancel karo|मत|नहीं|ना|रहने दो|कैंसिल|हटाओ)\\b.*");
     }
 
     private void handleSpeechResult(String transcript) {
@@ -647,6 +647,25 @@ public class VoiceAssistantBottomSheetDialog extends BottomSheetDialog {
         repository.insertTransaction(entity);
         try {
             com.smarttracker.core.sync.SyncManager.getInstance(getContext()).triggerSync();
+        } catch (Throwable ignored) {}
+
+        // Send local push notification for transaction confirmation
+        try {
+            android.app.NotificationManager notifManager = (android.app.NotificationManager) getContext().getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+            if (notifManager != null) {
+                String channelId = "smart_expenses_periodic_reminders";
+                long inrRupees = currentDraft.amountMinor / 100;
+                String notifMsg = "₹" + inrRupees + " (" + type.toUpperCase() + ") note ho gaya! Kharcha/Kamai history update ho gayi.";
+                androidx.core.app.NotificationCompat.Builder notifBuilder = new androidx.core.app.NotificationCompat.Builder(getContext(), channelId)
+                        .setSmallIcon(R.drawable.ic_notification_logo)
+                        .setColor(androidx.core.content.ContextCompat.getColor(getContext(), R.color.brand_primary))
+                        .setContentTitle("Transaction Saved ✅")
+                        .setContentText(notifMsg)
+                        .setStyle(new androidx.core.app.NotificationCompat.BigTextStyle().bigText(notifMsg))
+                        .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true);
+                notifManager.notify((int) System.currentTimeMillis(), notifBuilder.build());
+            }
         } catch (Throwable ignored) {}
 
         long rupees = currentDraft.amountMinor / 100;

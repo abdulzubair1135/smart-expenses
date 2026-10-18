@@ -41,13 +41,14 @@ public class LocalPatternLanguageParser {
                 .replace("८", "8").replace("९", "9")
                 .replaceAll("रुपये|रुपया|रूपये|रूपया|₹", " rupaye ")
                 .replaceAll("कमाए|कमाया|कमाई|कमाये", " kamaye ")
-                .replaceAll("खर्च|खर्चा", " kharch ")
+                .replaceAll("खर्च|खर्चा|खर्चे", " kharch ")
                 .replaceAll("उधार", " udhaar ")
                 .replaceAll("दिए|दिया", " diye ")
                 .replaceAll("लिए|लिया", " liye ")
                 .replaceAll("मिले|मिला", " mile ")
                 .replaceAll("वापस", " wapas ")
-                .replaceAll("नहीं|ना", " nahi ")
+                .replaceAll("नहीं|ना|मत", " nahi ")
+                .replaceAll("सेव कर दो|सेव करो|सेव|कर दो|करदो|हां|हाँ|हॉ|हांजी|ठीक है|सही है", " kardo ")
                 .toLowerCase(Locale.ROOT)
                 .trim()
                 .replaceAll("\\s+", " ");
@@ -64,8 +65,8 @@ public class LocalPatternLanguageParser {
         }
 
         // Stage 3: Confirmations & Cancellations
-        if (text.matches(".*\\b(haan|ha|yes|yep|confirm|save|theek hai|sahi hai|karo|done|kardo|kar do|kar do save|kardo save|rec|record|haanji|haan ji|ha kardo|haa kardo|haan kardo|kar do record|kardo record|kardo rec|kar do rec)\\b.*") &&
-                !text.matches(".*\\b(kharch|rupaye|rs|diye|aaye|transfer|kamaye|udhaar|udhar|split|bill)\\b.*")) {
+        if (text.matches(".*\\b(kardo|kar do|save|confirm|haan|ha|yes|yep|theek hai|sahi hai|karo|done|rec|record|haanji|haan ji|ha kardo|haa kardo|haan kardo|sev kar do|sev|save kar do|save kardo)\\b.*") &&
+                !text.matches(".*\\b(kharch|rupaye|rs|diye|aaye|transfer|kamaye|udhaar|udhar|split|bill|nahi|mat)\\b.*")) {
             model.intent = "CONFIRM_DRAFT";
             model.spokenResponse = "Transaction save kar raha hoon.";
             model.confidence = 0.99;

@@ -61,7 +61,7 @@ public class ExpenseReminderWorker extends Worker {
         return Result.success();
     }
 
-    private void sendReminderNotification(Context context) {
+    public static void sendReminderNotification(Context context) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
 
@@ -69,9 +69,10 @@ public class ExpenseReminderWorker extends Worker {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    NotificationManager.IMPORTANCE_HIGH
             );
             channel.setDescription("Smart Expenses regular periodic expense reminders");
+            channel.enableVibration(true);
             manager.createNotificationChannel(channel);
         }
 
@@ -88,11 +89,12 @@ public class ExpenseReminderWorker extends Worker {
         String message = PROMPTS[random.nextInt(PROMPTS.length)];
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(R.drawable.ic_notification_logo)
+                .setColor(androidx.core.content.ContextCompat.getColor(context, R.color.brand_primary))
                 .setContentTitle("Smart Expenses Reminder 🔔")
                 .setContentText(message)
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(message))
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 

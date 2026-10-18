@@ -1,4 +1,5 @@
 @echo off
+@chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 echo ==============================================================================
@@ -17,10 +18,10 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo [2/4] Starting Backend API Service (Port 4000)...
-start "SmartExpenses-Backend" cmd /k "cd /d "%PROJECT_ROOT%backend" && npm run dev"
+start "SmartExpenses-Backend" cmd /k "chcp 65001 >nul && cd /d "%PROJECT_ROOT%backend" && npm run dev"
 
 echo [3/4] Starting React Admin Panel (Port 5173)...
-start "SmartExpenses-Admin" cmd /k "cd /d "%PROJECT_ROOT%admin" && npm run dev"
+start "SmartExpenses-Admin" cmd /k "chcp 65001 >nul && cd /d "%PROJECT_ROOT%admin" && npm run dev"
 
 echo [4/4] Verifying local development endpoints...
 echo - Backend API:  http://localhost:4000

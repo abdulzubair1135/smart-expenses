@@ -1,4 +1,5 @@
 @echo off
+@chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 echo ==============================================================================
@@ -42,7 +43,7 @@ if not exist "%APK_PATH%" (
     echo [INFO] APK not found. Triggering Gradle build...
     cd /d "%PROJECT_ROOT%android"
     set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
-    call "%JAVA_HOME%\bin\java.exe" -jar "gradle\wrapper\gradle-wrapper.jar" assembleDebug
+    call "%JAVA_HOME%\bin\java.exe" -Dfile.encoding=UTF-8 -jar "%PROJECT_ROOT%android\gradle\wrapper\gradle-wrapper.jar" assembleDebug
     cd /d "%PROJECT_ROOT%"
 )
 

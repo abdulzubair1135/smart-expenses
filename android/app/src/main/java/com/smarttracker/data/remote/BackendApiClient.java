@@ -201,6 +201,38 @@ public class BackendApiClient {
         });
     }
 
+    // 6b. Device Token (FCM Registration)
+    public void registerDeviceToken(String fcmToken, ApiCallback<Void> callback) {
+        String token = sessionManager.getAuthToken();
+        if (token == null || token.trim().isEmpty()) {
+            if (callback != null) {
+                mainHandler.post(() -> callback.onError("Not authenticated"));
+            }
+            return;
+        }
+
+        JsonObject body = new JsonObject();
+        body.addProperty("token", fcmToken);
+        body.addProperty("platform", "android");
+        body.addProperty("deviceName", android.os.Build.MODEL);
+
+        postJson("/api/v1/notifications/device-token", body.toString(), token, new NetworkCallback() {
+            @Override
+            public void onResponse(JsonObject json) {
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onSuccess(null));
+                }
+            }
+
+            @Override
+            public void onFailure(String error) {
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onError(error));
+                }
+            }
+        });
+    }
+
     // 7. Data Export Backup
     public void exportBackup(ApiCallback<JsonObject> callback) {
         String token = sessionManager.getAuthToken();

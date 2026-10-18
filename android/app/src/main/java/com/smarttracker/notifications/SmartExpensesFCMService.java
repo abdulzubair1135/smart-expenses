@@ -14,7 +14,7 @@ import androidx.core.app.NotificationCompat;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 import com.smarttracker.R;
-import com.smarttracker.core.SessionManager;
+import com.smarttracker.data.session.SessionManager;
 import com.smarttracker.ui.home.MainActivity;
 
 /**

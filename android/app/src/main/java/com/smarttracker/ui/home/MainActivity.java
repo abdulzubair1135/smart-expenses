@@ -99,6 +99,47 @@ public class MainActivity extends AppCompatActivity {
 
         setupNavClickListeners();
 
+        // Prompt for notification permission on Android 13+ (TIRAMISU)
+        checkAndRequestNotificationPermission();
+
+        // Sync FCM token
+        syncFirebaseMessagingToken();
+    }
+
+    private void checkAndRequestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                androidx.core.app.ActivityCompat.requestPermissions(
+                        this,
+                        new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                        1010
+                );
+            }
+        }
+    }
+
+    private void syncFirebaseMessagingToken() {
+        try {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().getToken()
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful() && task.getResult() != null) {
+                            String token = task.getResult();
+                            android.util.Log.d("MainActivity", "FCM Token retrieved: " + token);
+                            getSharedPreferences("fcm_prefs", MODE_PRIVATE)
+                                    .edit()
+                                    .putString("fcm_token", token)
+                                    .apply();
+                            // Register token with backend if logged in
+                            if (sessionManager != null && sessionManager.isLoggedIn()) {
+                                BackendApiClient.getInstance(MainActivity.this).registerDeviceToken(token, null);
+                            }
+                        }
+                    });
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "FCM token fetch failed: " + e.getMessage());
+        }
+
         // Immediate background cloud sync on app start
         com.smarttracker.core.sync.SyncManager.getInstance(this).triggerSync();
     }

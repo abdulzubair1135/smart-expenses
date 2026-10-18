@@ -38,13 +38,17 @@ if %ERRORLEVEL% NEQ 0 (
 del devices_temp.txt >nul 2>nul
 
 echo [2/4] Verifying Compiled Debug APK...
-set "APK_PATH=%PROJECT_ROOT%android\app\build\outputs\apk\debug\app-debug.apk"
+set "APK_PATH=%PROJECT_ROOT%APK\SmartExpenses-v1.0.apk"
 if not exist "%APK_PATH%" (
-    echo [INFO] APK not found. Triggering Gradle build...
+    set "APK_PATH=%PROJECT_ROOT%android\app\build\outputs\apk\debug\app-debug.apk"
+)
+if not exist "%APK_PATH%" (
+    echo [INFO] APK not found in APK folder. Triggering Gradle build...
     cd /d "%PROJECT_ROOT%android"
     set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
     call "%JAVA_HOME%\bin\java.exe" -Dfile.encoding=UTF-8 -jar "%PROJECT_ROOT%android\gradle\wrapper\gradle-wrapper.jar" assembleDebug
     cd /d "%PROJECT_ROOT%"
+    set "APK_PATH=%PROJECT_ROOT%android\app\build\outputs\apk\debug\app-debug.apk"
 )
 
 if not exist "%APK_PATH%" (

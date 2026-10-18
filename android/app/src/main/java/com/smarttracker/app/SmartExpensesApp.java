@@ -13,5 +13,7 @@ public class SmartExpensesApp extends Application {
         AppDatabase.getDatabase(this);
         // Initialize Global Error Telemetry and Crash Monitoring
         MonitoringManager.init(this);
+        // Schedule 30-minute periodic expense reminders
+        com.smarttracker.notifications.ExpenseReminderWorker.schedulePeriodicReminder(this);
     }
 }

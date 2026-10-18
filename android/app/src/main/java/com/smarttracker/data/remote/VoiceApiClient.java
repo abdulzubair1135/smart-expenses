@@ -30,7 +30,8 @@ public class VoiceApiClient {
     private static final String TAG = "VoiceApiClient";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    // Primary: USB Reverse / Localhost; Secondary: Android Emulator Host
+    // Cloud backend on Render (primary); USB reverse (dev); Emulator bridge (emulator dev)
+    private static final String BASE_URL_CLOUD = "https://smart-expenses-kuob.onrender.com";
     private static final String BASE_URL_USB = "http://127.0.0.1:4000";
     private static final String BASE_URL_EMULATOR = "http://10.0.2.2:4000";
 
@@ -70,30 +71,41 @@ public class VoiceApiClient {
         String jsonBody = payload.toString();
         RequestBody requestBody = RequestBody.create(jsonBody, JSON);
 
-        // Try primary USB port reverse first (http://127.0.0.1:4000)
-        executeRequest(BASE_URL_USB + "/api/v1/voice/parse", authToken, correlationId, requestBody, transcript, startTime, new InternalCallback() {
+        // Try cloud backend first (primary)
+        executeRequest(BASE_URL_CLOUD + "/api/v1/voice/parse", authToken, correlationId, requestBody, transcript, startTime, new InternalCallback() {
             @Override
             public void onComplete(VoiceCommandModel result) {
                 mainHandler.post(() -> callback.onSuccess(result));
             }
 
             @Override
-            public void onFailed(String reason) {
-                // If 127.0.0.1 fails, try emulator bridge (http://10.0.2.2:4000)
-                executeRequest(BASE_URL_EMULATOR + "/api/v1/voice/parse", authToken, correlationId, requestBody, transcript, startTime, new InternalCallback() {
+            public void onFailed(String cloudReason) {
+                // Fallback 1: USB port reverse (local dev http://127.0.0.1:4000)
+                executeRequest(BASE_URL_USB + "/api/v1/voice/parse", authToken, correlationId, requestBody, transcript, startTime, new InternalCallback() {
                     @Override
                     public void onComplete(VoiceCommandModel result) {
                         mainHandler.post(() -> callback.onSuccess(result));
                     }
 
                     @Override
-                    public void onFailed(String secondReason) {
-                        // Activate deterministic fallback
-                        VoiceCommandModel fallbackModel = LocalPatternLanguageParser.parse(transcript);
-                        fallbackModel.correlationId = correlationId;
-                        fallbackModel.aiProvider = "deterministic-fallback";
-                        Log.w(TAG, "[" + correlationId + "] Fallback activated. Reason: " + secondReason);
-                        mainHandler.post(() -> callback.onFallback(fallbackModel, secondReason));
+                    public void onFailed(String usbReason) {
+                        // Fallback 2: Emulator bridge (http://10.0.2.2:4000)
+                        executeRequest(BASE_URL_EMULATOR + "/api/v1/voice/parse", authToken, correlationId, requestBody, transcript, startTime, new InternalCallback() {
+                            @Override
+                            public void onComplete(VoiceCommandModel result) {
+                                mainHandler.post(() -> callback.onSuccess(result));
+                            }
+
+                            @Override
+                            public void onFailed(String secondReason) {
+                                // Final fallback: deterministic offline parser
+                                VoiceCommandModel fallbackModel = LocalPatternLanguageParser.parse(transcript);
+                                fallbackModel.correlationId = correlationId;
+                                fallbackModel.aiProvider = "deterministic-fallback";
+                                Log.w(TAG, "[" + correlationId + "] All backends failed. Offline fallback. Reason: " + secondReason);
+                                mainHandler.post(() -> callback.onFallback(fallbackModel, secondReason));
+                            }
+                        });
                     }
                 });
             }

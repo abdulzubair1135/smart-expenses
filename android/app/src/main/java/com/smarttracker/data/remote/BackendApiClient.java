@@ -33,7 +33,7 @@ public class BackendApiClient {
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
     // Primary cloud backend deployed on Render; fallback URLs for offline or local dev
-    public static final String CLOUD_BASE_URL = "https://smart-expenses-8pf3.onrender.com";
+    public static final String CLOUD_BASE_URL = "https://smart-expenses-kuob.onrender.com";
     public static final String USB_LOCAL_URL = "http://127.0.0.1:4000";
     public static final String EMULATOR_URL = "http://10.0.2.2:4000";
 

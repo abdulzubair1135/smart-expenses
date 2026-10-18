@@ -9,7 +9,7 @@ const resolveBaseUrl = (): string => {
     }
     if (cached) return cached;
   }
-  return 'https://smart-expenses-kuob.onrender.com/api/v1/admin';
+  return (import.meta as any).env?.VITE_API_BASE_URL || 'https://smart-expenses-kuob.onrender.com/api/v1/admin';
 };
 
 export const adminApi = {

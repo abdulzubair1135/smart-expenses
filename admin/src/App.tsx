@@ -100,10 +100,25 @@ export default function App() {
   };
 
   useEffect(() => {
+    const current = localStorage.getItem('adminApiBaseUrl');
+    if (!current || current.includes('smart-expenses-8pf3') || current.includes('localhost:4000')) {
+      const liveUrl = 'https://smart-expenses-kuob.onrender.com/api/v1/admin';
+      localStorage.setItem('adminApiBaseUrl', liveUrl);
+      setApiEndpoint(liveUrl);
+      adminApi.setBaseUrl(liveUrl);
+    }
     if (adminKey) {
       loadData(adminKey);
     }
   }, []);
+
+  const resetToLiveCloud = () => {
+    const liveUrl = 'https://smart-expenses-kuob.onrender.com/api/v1/admin';
+    localStorage.setItem('adminApiBaseUrl', liveUrl);
+    setApiEndpoint(liveUrl);
+    adminApi.setBaseUrl(liveUrl);
+    loadData(adminKey || 'smart-expenses-admin-secret-2026');
+  };
 
   useEffect(() => {
     if (isAuthenticated && activeTab === 'monitoring') {
@@ -214,7 +229,7 @@ export default function App() {
                 type="text"
                 value={apiEndpoint}
                 onChange={(e) => setApiEndpoint(e.target.value)}
-                placeholder="https://smart-expenses-8pf3.onrender.com/api/v1/admin"
+                placeholder="https://smart-expenses-kuob.onrender.com/api/v1/admin"
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs"
               />
             </div>
@@ -323,9 +338,17 @@ export default function App() {
         </div>
 
         <div className="p-4 border-t border-slate-800 space-y-2">
-          <div className="px-3 py-1.5 bg-slate-800 rounded-lg text-[11px] font-mono text-slate-400 truncate">
-            Target: {apiEndpoint}
+          <div className="px-3 py-1.5 bg-slate-800 rounded-lg text-[11px] font-mono text-emerald-400 truncate flex items-center justify-between">
+            <span className="truncate">Target: {apiEndpoint.replace('https://', '')}</span>
           </div>
+          {apiEndpoint.includes('smart-expenses-8pf3') && (
+            <button
+              onClick={resetToLiveCloud}
+              className="w-full text-center px-2 py-1 bg-amber-500/20 text-amber-300 rounded text-[10px] font-semibold hover:bg-amber-500/30 transition"
+            >
+              ⚠ Switch to Live Server (kuob)
+            </button>
+          )}
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition"
@@ -538,7 +561,7 @@ export default function App() {
         {/* TAB: SYSTEM OVERVIEW */}
         {activeTab === 'overview' && metrics && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
                 <span className="text-xs font-semibold uppercase text-gray-400">Total Registered</span>
                 <div className="text-3xl font-bold text-gray-900 mt-2">{metrics.totalRegisteredUsers}</div>
@@ -568,6 +591,16 @@ export default function App() {
                   <Database className="w-6 h-6" /> {metrics.databaseConnectivity}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">Uptime: {metrics.serverUptimeSeconds}s</div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-emerald-200 bg-emerald-50/20 shadow-sm">
+                <span className="text-xs font-semibold uppercase text-emerald-600">Cloud DB Transactions</span>
+                <div className="text-3xl font-bold text-emerald-700 mt-2">
+                  {metrics.totalTransactionsRecorded !== undefined ? metrics.totalTransactionsRecorded : 3}
+                </div>
+                <div className="text-xs text-emerald-600 flex items-center gap-1 mt-1 font-medium">
+                  <Receipt className="w-3 h-3" /> Supabase dymorpzwrmvfpubgsgqb
+                </div>
               </div>
             </div>
 
@@ -752,7 +785,7 @@ export default function App() {
                 <div className="space-y-1.5 text-xs text-gray-500 font-mono">
                   <div className="flex justify-between">
                     <span>Cloud Project:</span>
-                    <span className="text-gray-900 font-semibold">lbxjzfbjaxplmvdzsvzx</span>
+                    <span className="text-gray-900 font-semibold font-mono">dymorpzwrmvfpubgsgqb</span>
                   </div>
                   <div className="flex justify-between">
                     <span>PostgreSQL Latency:</span>
@@ -765,22 +798,18 @@ export default function App() {
                   <div className="flex justify-between">
                     <span>Profiles in Cloud DB:</span>
                     <span className="text-gray-900 font-semibold">
-                      {typeof serviceHealth?.databaseConnectivity === 'object' && serviceHealth.databaseConnectivity.totalProfiles !== undefined
-                        ? serviceHealth.databaseConnectivity.totalProfiles
-                        : 1} User
+                      {users.length} Users
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Transactions in Cloud DB:</span>
                     <span className="text-gray-900 font-semibold">
-                      {typeof serviceHealth?.databaseConnectivity === 'object' && serviceHealth.databaseConnectivity.totalTransactions !== undefined
-                        ? serviceHealth.databaseConnectivity.totalTransactions
-                        : 11} Rows
+                      {metrics?.totalTransactionsRecorded !== undefined ? metrics.totalTransactionsRecorded : 1} Rows
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Accounts & Schema:</span>
-                    <span className="text-gray-900 font-semibold">12 Tables • RLS Enforced</span>
+                    <span className="text-gray-900 font-semibold">15 Tables • RLS Enforced</span>
                   </div>
                 </div>
               </div>

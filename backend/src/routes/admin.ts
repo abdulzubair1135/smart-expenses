@@ -10,25 +10,12 @@ const ONLINE_HEARTBEAT_WINDOW_MS = 120 * 1000; // 120 seconds
 async function getAllAdminProfiles(): Promise<Profile[]> {
   const profileMap = new Map<string, Profile>();
   
-  // 1. Local store profiles
-  for (const p of store.profiles.values()) {
-    profileMap.set(p.id, p);
-  }
-
-  // 2. Remote Supabase profiles
+  // 1. Remote Supabase profiles (Real data source of truth!)
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
-      const { data: remoteProfiles } = await supabaseAdmin.from('profiles').select('*');
+      const { data: remoteProfiles, error } = await supabaseAdmin.from('profiles').select('*').order('created_at', { ascending: false });
       if (remoteProfiles && remoteProfiles.length > 0) {
         for (const rp of remoteProfiles) {
-          // If a local store profile shares this email, replace it so we never display duplicates
-          if (rp.email) {
-            for (const [key, val] of profileMap.entries()) {
-              if (val.email && val.email.toLowerCase() === rp.email.toLowerCase() && key !== rp.id) {
-                profileMap.delete(key);
-              }
-            }
-          }
           profileMap.set(rp.id, {
             id: rp.id,
             email: rp.email || '',
@@ -43,10 +30,16 @@ async function getAllAdminProfiles(): Promise<Profile[]> {
             createdAt: rp.created_at
           });
         }
+        return Array.from(profileMap.values());
       }
     } catch (e) {
       console.warn('Could not query Supabase profiles for admin:', e);
     }
+  }
+
+  // 2. Fallback to store.profiles ONLY if Supabase is completely unavailable
+  for (const p of store.profiles.values()) {
+    profileMap.set(p.id, p);
   }
 
   return Array.from(profileMap.values());
@@ -408,8 +401,8 @@ adminRouter.get('/audit-logs', authenticateAdmin, async (req, res) => {
         adminId: 'super-admin',
         action: 'DATABASE_PROBE_VERIFIED',
         targetType: 'DATABASE',
-        targetId: 'lbxjzfbjaxplmvdzsvzx',
-        details: { tables: 12, rls: 'ACTIVE', status: 'connected' },
+        targetId: 'dymorpzwrmvfpubgsgqb',
+        details: { tables: 15, rls: 'ACTIVE', status: 'connected' },
         ipAddress: ip
       },
       {

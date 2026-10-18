@@ -1,10 +1,15 @@
 import { AdminMetrics, UserProfile, AuditLog, ActivityEvent } from '../types';
 
 const resolveBaseUrl = (): string => {
-  if (typeof window !== 'undefined' && localStorage.getItem('adminApiBaseUrl')) {
-    return localStorage.getItem('adminApiBaseUrl')!;
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem('adminApiBaseUrl');
+    if (cached && (cached.includes('smart-expenses-8pf3') || cached.includes('localhost:4000'))) {
+      localStorage.setItem('adminApiBaseUrl', 'https://smart-expenses-kuob.onrender.com/api/v1/admin');
+      return 'https://smart-expenses-kuob.onrender.com/api/v1/admin';
+    }
+    if (cached) return cached;
   }
-  return 'https://smart-expenses-8pf3.onrender.com/api/v1/admin';
+  return 'https://smart-expenses-kuob.onrender.com/api/v1/admin';
 };
 
 export const adminApi = {

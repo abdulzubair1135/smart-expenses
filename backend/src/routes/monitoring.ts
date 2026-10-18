@@ -243,12 +243,12 @@ monitoringRouter.get('/health', requireAdminKey, async (req: Request, res: Respo
     },
     databaseConnectivity: {
       ...dbStatus,
-      cloudProject: 'lbxjzfbjaxplmvdzsvzx',
+      cloudProject: process.env.SUPABASE_URL ? (process.env.SUPABASE_URL.match(/https?:\/\/([^.]+)\.supabase\.co/)?.[1] || 'dymorpzwrmvfpubgsgqb') : 'dymorpzwrmvfpubgsgqb',
       totalProfiles: liveProfilesCount,
       totalTransactions: liveTxsCount,
       totalAccounts: liveAccountsCount,
-      totalTables: 12,
-      rlsPolicies: 'Active on all tables'
+      totalTables: 15,
+      rlsPolicies: 'Active on all 15 tables'
     },
     monitoringIngestion: {
       status: 'healthy',

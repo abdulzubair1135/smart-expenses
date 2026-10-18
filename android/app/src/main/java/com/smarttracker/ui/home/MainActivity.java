@@ -104,6 +104,34 @@ public class MainActivity extends AppCompatActivity {
 
         // Sync FCM token
         syncFirebaseMessagingToken();
+
+        // Handle Back navigation: if on another tab, return to HomeFragment; if on HomeFragment, double-tap to exit
+        setupBackNavigation();
+    }
+
+    private long lastBackPressedTime = 0;
+
+    private void setupBackNavigation() {
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (currentFragment != homeFragment) {
+                    // Navigate back to Home tab
+                    switchFragment(homeFragment);
+                    updateNavIcons(binding.ivNavHome, binding.tvNavHome);
+                } else {
+                    // Already on Home: double press to exit
+                    long currentTime = System.currentTimeMillis();
+                    if (currentTime - lastBackPressedTime < 2000) {
+                        setEnabled(false);
+                        finish();
+                    } else {
+                        lastBackPressedTime = currentTime;
+                        Toast.makeText(MainActivity.this, "Press back again to exit", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        });
     }
 
     private void checkAndRequestNotificationPermission() {
@@ -139,6 +167,9 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             android.util.Log.e("MainActivity", "FCM token fetch failed: " + e.getMessage());
         }
+
+        // Trigger one test notification immediately on app start
+        com.smarttracker.notifications.ExpenseReminderWorker.sendReminderNotification(this);
 
         // Immediate background cloud sync on app start
         com.smarttracker.core.sync.SyncManager.getInstance(this).triggerSync();
@@ -201,7 +232,10 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private Fragment currentFragment;
+
     private void switchFragment(Fragment fragment) {
+        this.currentFragment = fragment;
         FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
         transaction.setCustomAnimations(R.anim.fade_in, R.anim.fade_out);
         transaction.replace(R.id.fragment_container, fragment);

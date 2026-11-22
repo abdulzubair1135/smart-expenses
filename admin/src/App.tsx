@@ -872,7 +872,7 @@ export default function App() {
                   <div className="flex justify-between">
                     <span>Primary Account:</span>
                     <span className="text-purple-700 font-semibold truncate max-w-[170px]">
-                      {serviceHealth?.authentication?.primaryAccount || 'abdulzubair221@gmail.com'}
+                      {serviceHealth?.authentication?.primaryAccount || 'smartexpensehelp@gmail.com'}
                     </span>
                   </div>
                   <div className="flex justify-between">

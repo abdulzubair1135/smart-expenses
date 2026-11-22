@@ -708,7 +708,7 @@ To ensure enterprise reliability, the project was rigorously subjected to four l
 
 | Test Case ID | Test Description | Input / Condition | Expected Output | Actual Output | Status |
 | :---: | :--- | :--- | :--- | :--- | :---: |
-| **TC-01** | Account Registration | Name: `meow`, Email: `abdulzubair221@gmail.com` | User registered; JWT token returned; Profile created in Supabase | User registered with ID `cc39ae44...`; Supabase profile verified | **PASS** |
+| **TC-01** | Account Registration | Name: `SmartExpense User`, Email: `smartexpensehelp@gmail.com` | User registered; JWT token returned; Profile created in Supabase | User registered with ID `cc39ae44...`; Supabase profile verified | **PASS** |
 | **TC-02** | Minor Units Precision | Enter Amount ₹50,000.00 | Stored as integer `5000000` Paise in Room & Cloud DB | Value in DB is exactly `5000000`; UI displays `₹ 50,000.00` | **PASS** |
 | **TC-03** | Offline Transaction Save | Airplane Mode ON; Add Expense ₹350 for "Coffee" | Saves to Room SQLite immediately; `isSynced=false`; UI updates | Instant local save; Balance decremented; zero network freeze | **PASS** |
 | **TC-04** | Cloud Background Sync | Airplane Mode OFF; Network restored | WorkManager pushes unsynced items to `/api/v1/sync/push` | All pending records synced; Supabase count incremented; `isSynced=true` | **PASS** |
@@ -839,7 +839,7 @@ gantt
 
 ## Annexure C: Project Source Code & Repository Details
 * **Project Name:** Smart Expenses Tracker
-* **GitHub Repository:** [https://github.com/abdulzubair1135/smart-expenses](https://github.com/abdulzubair1135/smart-expenses)
+* **GitHub Repository:** [https://github.com/smartexpensehelp-sketch](https://github.com/smartexpensehelp-sketch)
 * **Cloud API Deployment:** `https://smart-expenses-kuob.onrender.com`
 * **Local Control Panel:** `http://localhost:5173`
-* **Delivery Archive:** `C:\Users\abdul\OneDrive\ドキュメント\SmartExpenses-Complete-Project.zip`
+* **Delivery Archive:** `SmartExpenses-Complete-Project.zip`

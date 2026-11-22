@@ -410,7 +410,7 @@ adminRouter.get('/audit-logs', authenticateAdmin, async (req, res) => {
         action: 'USER_ACCOUNT_AUDITED',
         targetType: 'USER',
         targetId: '0034a254-3972-4509-ac85-8f9172574ca4',
-        details: { email: 'abdulzubair221@gmail.com', status: 'verified', presence: 'online' },
+        details: { email: 'smartexpensehelp@gmail.com', status: 'verified', presence: 'online' },
         ipAddress: ip
       },
       {
@@ -452,7 +452,7 @@ adminRouter.get('/users/:id/transactions', authenticateAdmin, async (req, res) =
       let targetUserId = isUuid.test(userId) ? userId : null;
 
       if (!targetUserId) {
-        const { data: prof } = await supabaseAdmin.from('profiles').select('id').eq('email', 'abdulzubair221@gmail.com').maybeSingle();
+        const { data: prof } = await supabaseAdmin.from('profiles').select('id').eq('email', 'smartexpensehelp@gmail.com').maybeSingle();
         if (prof?.id) {
           targetUserId = prof.id;
         }

@@ -262,7 +262,7 @@ monitoringRouter.get('/health', requireAdminKey, async (req: Request, res: Respo
       status: 'healthy',
       mode: 'jwt_hs256 + PostgreSQL RLS',
       activeUsers: liveProfilesCount,
-      primaryAccount: 'abdulzubair221@gmail.com (Verified)',
+      primaryAccount: 'smartexpensehelp@gmail.com (Verified)',
       privacyWall: 'Active & Enforced (Zero-Knowledge)'
     },
     backgroundSync: {
